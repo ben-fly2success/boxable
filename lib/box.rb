@@ -2,6 +2,7 @@ require 'box/acts_as_boxable'
 require 'box/boxable_config'
 require 'box/task'
 require 'box/task/install'
+require 'box/helper'
 require 'box/railtie'
 
 require 'box_token'

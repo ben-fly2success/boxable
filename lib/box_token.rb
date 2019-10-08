@@ -26,7 +26,6 @@ class BoxToken < ActiveRecord::Base
   private
 
   def ensure_token_valid
-    puts "VALID: #{token_valid?}"
     unless token_valid?
       t = self.class.token
       self.token = t.access_token
