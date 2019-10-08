@@ -1,9 +1,10 @@
+folders = ['app', 'lib', 'config']
+
 Gem::Specification.new do |s|
-  s.name = %q{box}
+  s.name = 'box'
   s.version = "0.0.0"
-  s.date = %q{2019-10-08}
-  s.summary = %q{handle Box tree}
-  s.files = Dir.glob("lib/**/*")
+  s.summary = 'handle Box tree'
+  s.files = Dir['{app,config,lib}/**/*']
   s.author = "Adrien LENGLET"
-  s.require_paths = ["lib"]
+  s.require_paths = folders
 end

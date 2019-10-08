@@ -8,7 +8,7 @@ module Box
       def acts_as_boxable(options = {})
         class_eval do
           cattr_accessor :boxable_config
-          self.boxable_config = Boxable::BoxableConfig.new(options)
+          self.boxable_config = Box::BoxableConfig.new(options)
           after_commit :create_box_folder, on: :create
 
           extend FriendlyId
@@ -43,4 +43,4 @@ module Box
   end
 end
 
-ActiveRecord::Base.send :include, Boxable::ActsAsBoxable
+ActiveRecord::Base.send :include, Box::ActsAsBoxable
