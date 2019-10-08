@@ -36,8 +36,7 @@ class BoxFolder < ActiveRecord::Base
         parent_folder = boxable.send(parent_association.name.to_sym).send("box_#{associated_name}_folder".to_sym)
         client.folder_from_id(parent_folder.folder)
       else
-        root = client.folder_from_id(BoxToken.root.folder)
-        Box::Helper.sub_folder(boxable.class.table_name, client.folder_items(root))
+        client.folder_from_id(ENV["BOX_#{boxable.class.table_name.upcase}_FOLDER"])
       end
     end
   end
