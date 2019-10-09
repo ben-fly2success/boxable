@@ -50,10 +50,20 @@ module Box
           # @return Hash
           def self.box_parent_meta
             parent_association = reflect_on_all_associations.select{ |a| a.name == boxable_config.parent }.first
-            raise "Parent association '#{boxable_config.parent}' not found for class #{name}" unless parent_association
+            unless parent_association
+              raise "Parent association '#{boxable_config.parent}' not found for class #{name}"
+            end
 
             associated_name = parent_association.options[:inverse_of]
-            raise "No option 'inverse_of' defined on association '#{parent_association.name}' for class #{name}" unless associated_name
+            unless associated_name
+              raise "No option 'inverse_of' defined on association '#{parent_association.name}' for class #{name}"
+            end
+            begin
+              unless parent_association.klass.respond_to? :boxable_config
+                raise "Box parent class '#{parent_association.klass}' is not boxable"
+              end
+            rescue ArgumentError # Rescue polymorphic associations
+            end
 
             {parent_method: parent_association.name, parent_association: associated_name}
           end
@@ -82,13 +92,15 @@ module Box
           prepend InstanceMethods
         end
 
-        # Ensure model is correct on initialization, by calling critical methods
-        if boxable_config.parent
-          # Try getting class parent folder metadata, if any
-          box_parent_meta
-        else
-          # Try getting class folder in Box root, otherwise
-          box_folder_id_in_root
+        unless ENV['BOXABLE_NOCHECK'] # Set on installation
+          # Ensure model is correct on initialization, by calling critical methods
+          if boxable_config.parent
+            # Try getting class parent folder metadata, if any
+            box_parent_meta
+          else
+            # Try getting class folder in Box root, otherwise
+            box_folder_id_in_root
+          end
         end
 
         # Setup associations Box folders as has_one
