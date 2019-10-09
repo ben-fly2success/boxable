@@ -4,6 +4,7 @@ module Box
 
     def initialize(options = {})
       @parent = options[:parent]
+      @folders = {}
     end
   end
 end

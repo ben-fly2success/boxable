@@ -36,6 +36,14 @@ module Box
     end
 
     module ClassMethods
+      def has_one_box_folder(name, attribute_name: nil)
+        class_eval do
+          define_method(name) do
+            BoxFolder.find_by(boxable: self, attribute_name: attribute_name)
+          end
+        end
+      end
+
       def acts_as_boxable(options = {})
         class_eval do
           # @abstract Get metadata about the class Box parent
@@ -69,7 +77,9 @@ module Box
           friendly_id :full_name, use: :slugged
 
           # Record folder
-          has_one :box_folder, as: :boxable, dependent: :destroy
+          has_one_box_folder :box_folder
+          has_many :box_folders, as: :boxable, class_name: 'BoxFolder', dependent: :destroy
+          prepend InstanceMethods
         end
 
         # Ensure model is correct on initialization, by calling critical methods
@@ -92,11 +102,14 @@ module Box
         class_eval do
           # Build all Box folders right before object creation
           before_create do |o|
-            o.build_box_folder unless o.box_folder
+            box_folders.build
             Box::ActsAsBoxable::Helper.boxable_associations(o.class).each do |a|
-              box_folder_name = "box_#{a.name}_folder".to_sym
-              o.send("build_#{box_folder_name}", parent_name: :box_folder, name: a.name)
+              box_folders.build(attribute_name: a.name)
             end
+          end
+
+          def box_folder(attribute_name = nil)
+            box_folders.find_by(attribute_name: attribute_name)
           end
 
           prepend InstanceMethods
@@ -108,17 +121,17 @@ module Box
         # @param [Symbol] parent_name - Method to call to get parent folder (in case of attribute)
         # @note Set above parameter to nil if object folder
         # @return String
-        def box_parent_id(parent_name)
+        def box_parent_id(attribute_name)
           # Check whether we have an object or attribute folder
-          if parent_name
+          if attribute_name
             # Attribute folder, parent is object associated
-            send(parent_name).folder
+            send(:box_folder).folder
           else
             # Object folder, check whether the class has a parent or not
             if self.class.boxable_config.parent
               # Get parent folder id
               meta = self.class.box_parent_meta
-              parent_folder = send(meta[:parent_method]).send("box_#{meta[:parent_association]}_folder")
+              parent_folder = send(meta[:parent_method]).box_folder(meta[:parent_association])
               parent_folder.folder
             else
               # Class has no parent, get folder in box root
