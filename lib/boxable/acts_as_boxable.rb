@@ -129,6 +129,10 @@ module Boxable
             res
           end
 
+          define_method "#{basename}=" do |value|
+            send(basename).attach(value)
+          end
+
           before_create do
             box_files.build(basename: basename)
           end
@@ -148,6 +152,21 @@ module Boxable
 
           before_create do
             box_file_collections.build(basename: basename)
+          end
+        end
+      end
+
+      def has_one_picture(name)
+        class_eval do
+          has_many_box_files("#{name}_definitions")
+
+          define_method "#{name}=" do |value|
+            send("#{name}_definitions").add('original', value, generate_url: true)
+          end
+
+          define_method name do
+            res = send("#{name}_definitions").find('original')
+            res ? res.url : nil
           end
         end
       end

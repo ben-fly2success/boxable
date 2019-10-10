@@ -17,13 +17,13 @@ class BoxFileCollection < ActiveRecord::Base
     box_files.find_by(basename: key)
   end
 
-  def add(temp_file, name: temp_file)
+  def add(name, temp_file, generate_url: false)
     old = find(name)
     if old
-      old.attach(temp_file, name: name)
+      old.attach(temp_file, name: name, generate_url: generate_url)
     else
       file = box_files.build(basename: name)
-      file.attach(temp_file, name: name)
+      file.attach(temp_file, name: name, generate_url: generate_url)
       file
     end
   end
