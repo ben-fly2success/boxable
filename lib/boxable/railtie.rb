@@ -1,7 +1,7 @@
-module Box
+module Boxable
   class Railtie < Rails::Railtie
     rake_tasks do
-      load 'tasks/box.rake'
+      load 'tasks/boxable.rake'
     end
   end
 end

@@ -1,6 +1,6 @@
-namespace :box do
+namespace :boxable do
   desc "Setup box folder"
   task install: :environment do
-    Box::Task::Install.perform
+    Boxable::Task::Install.perform
   end
 end

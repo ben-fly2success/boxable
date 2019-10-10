@@ -1,7 +1,7 @@
 folders = ['app', 'lib', 'config']
 
 Gem::Specification.new do |s|
-  s.name = 'box'
+  s.name = 'boxable'
   s.version = "0.0.0"
   s.summary = 'handle Box tree'
   s.files = Dir['{app,config,lib}/**/*']

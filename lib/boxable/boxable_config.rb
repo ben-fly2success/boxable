@@ -1,4 +1,4 @@
-module Box
+module Boxable
   class BoxableConfig
     attr_reader :parent
 
