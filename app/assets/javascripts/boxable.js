@@ -1,5 +1,8 @@
 function BoxFileInput(file_input) {
     var dst_field = $(`#${file_input}`).data('dst-field');
+    let preview = $(`#${file_input}`).data('preview');
+    var spinner = $(`#${file_input}`).data('spinner');
+    console.log(file_input);
     var overwrite = true; // Set to false to prevent overwriting in case of conflicts
     var fileUploaded = false;
 
@@ -12,6 +15,15 @@ function BoxFileInput(file_input) {
 
     $(`#${file_input}`).on('input', function () {
         if ($(`#${file_input}`).prop('files').length > 0) {
+            if (preview) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $(`#${preview}`).attr('src', e.target.result);
+                };
+                reader.readAsDataURL($(`#${file_input}`).prop('files')[0]);
+            }
+            $(`#${spinner}`).attr('style', 'display: block');
+            $(`#${preview}`).attr('style', 'filter: brightness(50%);');
             upload();
         };
     });
@@ -71,12 +83,12 @@ function BoxFileInput(file_input) {
      */
     var uploadHandler = function(response) {
         const { status } = response;
-        console.log(response);
         if (status >= 200 && status < 300) {
             response.json().then(function(json) {
                 fileUploaded = true;
                 $(`#${dst_field}`).val(json.entries[0]['id']);
-                console.log(`#${dst_field}`);
+                $(`#${spinner}`).attr('style', 'display: none');
+                $(`#${preview}`).attr('style', '');
             });            // Upload was successful
             $(`#${file_input}`).val('');
             clearFileInput();
