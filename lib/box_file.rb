@@ -6,11 +6,13 @@ class BoxFile < ActiveRecord::Base
   after_commit :detach, on: :destroy
 
   def attach(temp_file, name: nil, generate_url: false)
-    client = BoxToken.client
-    detach
     if temp_file.class.name == 'Array'
       temp_file, generate_url = temp_file
     end
+    return if temp_file == self.file
+
+    client = BoxToken.client
+    detach
     if temp_file && temp_file != ""
       self.parent = boxable.box_folder
       self.file = client.update_file(temp_file, name: "#{name ? name : basename}#{File.extname(client.file_from_id(temp_file).name).downcase}", parent: self.parent).id

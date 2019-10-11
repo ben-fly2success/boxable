@@ -165,8 +165,7 @@ module Boxable
           end
 
           define_method name do
-            res = send("#{name}_definitions").find('original')
-            res ? res.url : nil
+            send("#{name}_definitions").find('original')
           end
         end
       end
