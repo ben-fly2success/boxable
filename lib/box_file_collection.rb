@@ -30,7 +30,7 @@ class BoxFileCollection < ActiveRecord::Base
 
   def create_folder
     self.parent = boxable.box_folder
-    self.folder = BoxToken.client.create_folder(basename, self.parent).id
+    self.folder = Boxable::Helper.get_folder_or_create(basename, self.parent).id
     self.save!
   end
 

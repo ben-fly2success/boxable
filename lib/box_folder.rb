@@ -7,10 +7,9 @@ class BoxFolder < ActiveRecord::Base
   attr_accessor :name
 
   def create_folder
-    client = BoxToken.client
     parent_id = boxable.boxable_parent_id(attribute_name)
     self.parent = parent_id
-    self.folder = client.create_folder(attribute_name ? attribute_name : boxable.slug, parent_id).id
+    self.folder = Boxable::Helper.get_folder_or_create(attribute_name ? attribute_name : boxable.slug, parent_id).id
     self.save!
   end
 

@@ -43,6 +43,17 @@ module Boxable
     end
 
     module ClassMethods
+      def create_box_folders
+        self.all.each do |o|
+          ActiveRecord::Base.transaction do
+            puts "Creating box folders for '#{o.slug}'.."
+            o.create_box_folders
+            o.save!
+            puts "'#{o.slug}' saved.'"
+          end
+        end
+      end
+
       def acts_as_boxable(options = {})
         class_eval do
           # @abstract Get metadata about the class Box parent
@@ -108,10 +119,7 @@ module Boxable
         class_eval do
           # Build all Box folders right before object creation
           before_create do |o|
-            box_folders.build
-            Boxable::ActsAsBoxable::Helper.boxable_associations(o.class).each do |a|
-              box_folders.build(attribute_name: a.name)
-            end
+            o.create_box_folders
           end
 
           prepend InstanceMethods
@@ -136,29 +144,33 @@ module Boxable
           before_create do
             box_files.build(basename: basename)
           end
+
+          self.boxable_config.box_files << basename
         end
       end
 
-      def has_many_box_files(basename)
+      def has_many_box_files(basename, box_name: basename)
         raise Boxable::Error.new("File attached with name '#{name}' to class '#{self.name}' not marked as boxable.\n" \
                                  "Use 'acts_as_boxable' in that class declaration to set a folder in which the file will be placed.") unless respond_to?(:boxable_config)
         class_eval do
           define_method(basename) do
-            res = box_file_collections.find_by(basename: basename)
-            raise Boxable::Error.new("No BoxFile record for '#{basename}' of class '#{self.class.name}'") unless res
+            res = box_file_collections.find_by(basename: box_name)
+            raise Boxable::Error.new("No BoxFile record for '#{box_name}' of class '#{self.class.name}'") unless res
 
             res
           end
 
           before_create do
-            box_file_collections.build(basename: basename)
+            box_file_collections.build(basename: box_name)
           end
+
+          self.boxable_config.box_file_collections << box_name
         end
       end
 
-      def has_one_picture(name)
+      def has_one_box_picture(name)
         class_eval do
-          has_many_box_files("#{name}_definitions")
+          has_many_box_files("#{name}_definitions", box_name: name)
 
           define_method "#{name}=" do |value|
             send("#{name}_definitions").add('original', value, generate_url: true)
@@ -167,16 +179,45 @@ module Boxable
           define_method name do
             send("#{name}_definitions").find('original')
           end
+
+          self.boxable_config.box_pictures << "#{name}_definitions"
         end
       end
 
       module InstanceMethods
+        # @abstract Create / retrieve all BoxFolders
+        def create_box_folders
+          create_box_associated_folders
+          create_box_attached_folders(*self.class.boxable_config.attributes)
+        end
+
+        def create_box_associated_folders
+          box_folders.build unless box_folders.find_by(attribute_name: nil)
+          Boxable::ActsAsBoxable::Helper.boxable_associations(self.class).each do |a|
+            box_folders.build(attribute_name: a.name) unless box_folders.find_by(attribute_name: a.name)
+          end
+        end
+
+        # @abstract Create box folders for given attributes
+        def create_box_attached_folders(*attributes_names)
+          attributes_names.each do |attribute_name|
+            case self.class.boxable_config.attribute_type(attribute_name)
+            when :box_file
+              self.box_files.build(basename: attribute_name) unless self.box_files.find_by(basename: attribute_name)
+            when :box_file_collection, :box_picture
+              self.box_file_collections.build(basename: attribute_name) unless self.box_file_collections.find_by(basename: attribute_name)
+            else
+              raise "Unknown attribute type: #{self.class.boxable_config.attribute_type(attribute_name)}"
+            end
+          end
+        end
+
         # @abstract Get the BoxFolder for the object (attribute_name = nil), or an attribute
         # @option [Symbol] attribute_name - Name of the attribute
         # @return String
         def box_folder_instance(attribute_name = nil)
           res = box_folders.find_by(attribute_name: attribute_name)
-          raise Boxable::Error.new("No Box folder for #{attribute_name && "attribute '#{attribute_name}' of '"} class '#{self.class.name}") unless res
+          raise Boxable::Error.new("No Box folder for #{attribute_name && "attribute '#{attribute_name}' of '"} class '#{self.class.name}'") unless res
           res
         end
 
