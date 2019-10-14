@@ -16,8 +16,8 @@ module Boxable
 
     def self.destroy_or_ignore_sub_folder(name, items, client: BoxToken.client)
       begin
-        client.delete_folder(Boxable::Helper.sub_folder(name, items))
-      rescue Boxr::BoxrError => e
+        client.delete_folder(Boxable::Helper.sub_folder(name, items), recursive: true)
+      rescue Boxr::BoxrError, Boxable::Error => e
         puts "Can't destroy folder '#{name}' in #{items_names(items)}: #{e}"
       end
     end
