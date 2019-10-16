@@ -5,9 +5,17 @@ class BoxFile < ActiveRecord::Base
 
   after_commit :detach, on: :destroy
 
+  def used_basename(given)
+    if self.name_method
+      boxable.send(self.name_method)
+    else
+      given ? given : basename
+    end
+  end
+
   def attach(temp_file, name: nil, generate_url: false)
     if temp_file.class.name == 'Array'
-      temp_file, generate_url = temp_file
+      temp_file, name, generate_url = temp_file
     end
     return if temp_file == self.file
 
@@ -15,7 +23,7 @@ class BoxFile < ActiveRecord::Base
     detach
     if temp_file && temp_file != ""
       self.parent = boxable.box_folder
-      self.file = client.update_file(temp_file, name: "#{name ? name : basename}#{File.extname(client.file_from_id(temp_file).name).downcase}", parent: self.parent).id
+      self.file = client.update_file(temp_file, name: "#{used_basename(name)}#{File.extname(client.file_from_id(temp_file).name).downcase}", parent: self.parent).id
       if generate_url
         self.url = client.create_shared_link_for_file(self.file, access: :open).shared_link.download_url
       end

@@ -21,6 +21,7 @@ module Boxable
           begin
             a.klass.respond_to? :boxable_config
             conf = a.klass.boxable_config
+            return false if conf.folder_is_parent
             conf.parent ? true : false
           rescue NameError # Some associated class might not be resolvable
             false
@@ -92,15 +93,19 @@ module Boxable
           cattr_accessor :boxable_config
           self.boxable_config = Boxable::BoxableConfig.new(options)
 
-          # Define a slug based on full_name, used for Box folder name
-          extend FriendlyId
-          friendly_id :full_name, use: :slugged
-
           # Record folders
           has_many :box_folders, as: :boxable, dependent: :destroy
           has_many :box_files, as: :boxable, dependent: :destroy
           has_many :box_file_collections, as: :boxable, dependent: :destroy
           prepend InstanceMethods
+        end
+
+        unless self.boxable_config.folder_is_parent
+          class_eval do
+            # Define a slug based on full_name, used for Box folder name
+            extend FriendlyId
+            friendly_id :full_name, use: :slugged
+          end
         end
 
         begin
@@ -122,11 +127,17 @@ module Boxable
             o.create_box_folders
           end
 
+          after_create do |o|
+            after_create_box_attachments.each do |t|
+              t.perform_for o
+            end
+          end
+
           prepend InstanceMethods
         end
       end
 
-      def has_one_box_file(basename)
+      def has_one_box_file(basename, name_method: nil)
         raise Boxable::Error.new("File attached with name '#{name}' to class '#{self.name}' not marked as boxable.\n" \
                                  "Use 'acts_as_boxable' in that class declaration to set a folder in which the file will be placed.") unless respond_to?(:boxable_config)
         class_eval do
@@ -138,14 +149,16 @@ module Boxable
           end
 
           define_method "#{basename}=" do |value|
-            send(basename).attach(value)
-          end
-
-          before_create do
-            box_files.build(basename: basename)
+            task = Boxable::AttachmentTask.new(:has_one, basename, value)
+            if self.new_record?
+              after_create_box_attachments << task
+            else
+              task.perform_for self
+            end
           end
 
           self.boxable_config.box_files << basename
+          self.boxable_config.attr_params[basename] = {basename: basename, name_method: name_method}
         end
       end
 
@@ -160,11 +173,8 @@ module Boxable
             res
           end
 
-          before_create do
-            box_file_collections.build(basename: box_name)
-          end
-
           self.boxable_config.box_file_collections << box_name
+          self.boxable_config.attr_params[basename] = {basename: box_name}
         end
       end
 
@@ -173,7 +183,12 @@ module Boxable
           has_many_box_files("#{name}_definitions", box_name: name)
 
           define_method "#{name}=" do |value|
-            send("#{name}_definitions").add('original', value, generate_url: true)
+            task = Boxable::AttachmentTask.new(:has_one_picture, name, value)
+            if self.new_record?
+              after_create_box_attachments << task
+            else
+              task.perform_for self
+            end
           end
 
           define_method name do
@@ -185,6 +200,13 @@ module Boxable
       end
 
       module InstanceMethods
+        def after_create_box_attachments
+          unless @after_create_box_attachments_impl
+            @after_create_box_attachments_impl = []
+          end
+          @after_create_box_attachments_impl
+        end
+
         # @abstract Create / retrieve all BoxFolders
         def create_box_folders
           create_box_associated_folders
@@ -192,7 +214,7 @@ module Boxable
         end
 
         def create_box_associated_folders
-          box_folders.build unless box_folders.find_by(attribute_name: nil)
+          box_folders.build unless self.boxable_config.folder_is_parent || box_folders.find_by(attribute_name: nil)
           Boxable::ActsAsBoxable::Helper.boxable_associations(self.class).each do |a|
             box_folders.build(attribute_name: a.name) unless box_folders.find_by(attribute_name: a.name)
           end
@@ -201,11 +223,12 @@ module Boxable
         # @abstract Create box folders for given attributes
         def create_box_attached_folders(*attributes_names)
           attributes_names.each do |attribute_name|
+            params = self.boxable_config.attr_params[attribute_name]
             case self.class.boxable_config.attribute_type(attribute_name)
             when :box_file
-              self.box_files.build(basename: attribute_name) unless self.box_files.find_by(basename: attribute_name)
+              self.box_files.build(params) unless self.box_files.find_by(basename: attribute_name)
             when :box_file_collection, :box_picture
-              self.box_file_collections.build(basename: attribute_name) unless self.box_file_collections.find_by(basename: attribute_name)
+              self.box_file_collections.build(params) unless self.box_file_collections.find_by(basename: attribute_name)
             else
               raise "Unknown attribute type: #{self.class.boxable_config.attribute_type(attribute_name)}"
             end
@@ -216,8 +239,13 @@ module Boxable
         # @option [Symbol] attribute_name - Name of the attribute
         # @return String
         def box_folder_instance(attribute_name = nil)
-          res = box_folders.find_by(attribute_name: attribute_name)
-          raise Boxable::Error.new("No Box folder for #{attribute_name && "attribute '#{attribute_name}' of '"} class '#{self.class.name}'") unless res
+          res = nil
+          if attribute_name.nil? && self.boxable_config.folder_is_parent
+            res = send(self.boxable_config.parent).box_folder_instance
+          else
+            res = box_folders.find_by(attribute_name: attribute_name)
+          end
+          raise Boxable::Error.new("No Box folder for #{attribute_name && "attribute '#{attribute_name}' of "} class '#{self.class.name}'") unless res
           res
         end
 
