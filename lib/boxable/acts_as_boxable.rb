@@ -142,10 +142,7 @@ module Boxable
                                  "Use 'acts_as_boxable' in that class declaration to set a folder in which the file will be placed.") unless respond_to?(:boxable_config)
         class_eval do
           define_method(basename) do
-            res = box_files.find_by(basename: basename)
-            raise Boxable::Error.new("No BoxFile record for '#{basename}' of class '#{self.class.name}'") unless res
-
-            res
+            box_files.find_by(basename: basename)
           end
 
           define_method "#{basename}=" do |value|
@@ -167,13 +164,10 @@ module Boxable
                                  "Use 'acts_as_boxable' in that class declaration to set a folder in which the file will be placed.") unless respond_to?(:boxable_config)
         class_eval do
           define_method(basename) do
-            res = box_file_collections.find_by(basename: box_name)
-            raise Boxable::Error.new("No BoxFile record for '#{box_name}' of class '#{self.class.name}'") unless res
-
-            res
+            box_file_collections.find_by(basename: box_name)
           end
 
-          self.boxable_config.box_file_collections << box_name
+          self.boxable_config.box_file_collections << basename
           self.boxable_config.attr_params[basename] = {basename: box_name}
         end
       end
@@ -245,7 +239,7 @@ module Boxable
           else
             res = box_folders.find_by(attribute_name: attribute_name)
           end
-          raise Boxable::Error.new("No Box folder for #{attribute_name && "attribute '#{attribute_name}' of "} class '#{self.class.name}'") unless res
+          raise Boxable::Error.new("No Box folder for#{attribute_name && "attribute '#{attribute_name}' of "} class '#{self.class.name}'") unless res
           res
         end
 
