@@ -28,6 +28,8 @@ class BoxFile < ActiveRecord::Base
         self.url = client.create_shared_link_for_file(self.file, access: :open).shared_link.download_url
       end
       self.save!
+    else
+      self.destroy!
     end
   end
 

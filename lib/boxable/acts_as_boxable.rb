@@ -214,18 +214,24 @@ module Boxable
           end
         end
 
+        def build_box_associated(attribute_name)
+          params = self.boxable_config.attr_params[attribute_name]
+          case self.class.boxable_config.attribute_type(attribute_name)
+          when :box_file
+            got = self.box_files.find_by(basename: attribute_name)
+            got ? got : self.box_files.build(params)
+          when :box_file_collection, :box_picture
+            got = self.box_file_collections.find_by(basename: attribute_name)
+            got ? got : self.box_file_collections.build(params)
+          else
+            raise "Unknown attribute type: #{self.class.boxable_config.attribute_type(attribute_name)}"
+          end
+        end
+
         # @abstract Create box folders for given attributes
         def create_box_attached_folders(*attributes_names)
           attributes_names.each do |attribute_name|
-            params = self.boxable_config.attr_params[attribute_name]
-            case self.class.boxable_config.attribute_type(attribute_name)
-            when :box_file
-              self.box_files.build(params) unless self.box_files.find_by(basename: attribute_name)
-            when :box_file_collection, :box_picture
-              self.box_file_collections.build(params) unless self.box_file_collections.find_by(basename: attribute_name)
-            else
-              raise "Unknown attribute type: #{self.class.boxable_config.attribute_type(attribute_name)}"
-            end
+            build_box_associated(attribute_name)
           end
         end
 
