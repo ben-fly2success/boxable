@@ -5,17 +5,6 @@ module Boxable
     end
 
     module ClassMethods
-      def create_box_folders
-        ActiveRecord::Base.transaction do
-          self.all.each do |o|
-            puts "Creating box folders for '#{o.slug}'.."
-            o.create_box_folders
-            o.save!
-            puts "'#{o.slug}' saved."
-          end
-        end
-      end
-
       def acts_as_boxable(options = {})
         class_eval do
           # @abstract Get metadata about the class Box parent
@@ -40,24 +29,17 @@ module Boxable
             {parent_method: parent_association.name, parent_association: associated_name}
           end
 
-          # @abstract Get class folder id in Box root
-          # @return Hash
-          def self.box_folder_id_in_root
-            folder_id_key = "BOX_#{self.table_name.upcase}_FOLDER"
-            folder_id = ENV[folder_id_key]
-            raise Boxable::Error.new("Cannot resolve folder '#{folder_id_key}' in ENV") unless folder_id
-
-            folder_id
-          end
-
           # Store boxable metadata in the instance
           cattr_accessor :boxable_config
           self.boxable_config = Boxable::BoxableConfig.new(options)
 
           # Record folders
-          has_many :box_folders, as: :boxable, dependent: :destroy
           has_many :box_files, as: :boxable, dependent: :destroy
-          has_many :box_file_collections, as: :boxable, dependent: :destroy
+          has_one :bound_box_folder, class_name: 'BoxFolder', as: :boxable
+          after_destroy do
+            # Make sure root is actually destroyed after everything else
+            bound_box_folder&.destroy
+          end
           prepend InstanceMethods
         end
 
@@ -77,18 +59,15 @@ module Boxable
           if boxable_config.parent
             # Try getting class parent folder metadata, if any
             box_parent_meta
-          else
-            # Try getting class folder in Box root, otherwise
-            box_folder_id_in_root
           end
         rescue Boxable::Error => e
           puts "BOXABLE WARNING: #{e}"
         end
 
         class_eval do
-          after_create do |o|
+          after_create do
             after_create_box_attachments.each do |t|
-              t.perform_for o
+              t.perform_for self
             end
           end
 
@@ -97,46 +76,36 @@ module Boxable
       end
 
       def has_one_box_file(basename, name_method: nil)
-        raise Boxable::Error.new("File attached with name '#{name}' to class '#{self.name}' not marked as boxable.\n" \
-                                 "Use 'acts_as_boxable' in that class declaration to set a folder in which the file will be placed.") unless respond_to?(:boxable_config)
         class_eval do
           define_method(basename) do
-            box_files.find_by(basename: basename)
+            box_folder_root.file(basename)
           end
 
           define_method "#{basename}=" do |value|
-            task = Boxable::AttachmentTask.new(:has_one, basename, value)
+            task = Boxable::AttachmentTask.new(:one_file, basename, name_method, value)
             if self.new_record?
               after_create_box_attachments << task
             else
               task.perform_for self
             end
           end
-
-          self.boxable_config.box_files << basename
-          self.boxable_config.attr_params[basename] = {basename: basename, name_method: name_method}
         end
       end
 
-      def has_many_box_files(basename, box_name: basename)
-        raise Boxable::Error.new("File attached with name '#{name}' to class '#{self.name}' not marked as boxable.\n" \
-                                 "Use 'acts_as_boxable' in that class declaration to set a folder in which the file will be placed.") unless respond_to?(:boxable_config)
+      def has_one_box_folder(name, method_name: name)
         class_eval do
-          define_method(basename) do
-            box_file_collections.find_by(basename: box_name) || box_file_collections.create!(basename: box_name)
+          define_method(method_name) do
+            box_folder_root.sub(name)
           end
-
-          self.boxable_config.box_file_collections << basename
-          self.boxable_config.attr_params[basename] = {basename: box_name}
         end
       end
 
       def has_one_box_picture(name)
         class_eval do
-          has_many_box_files("#{name}_definitions", box_name: name)
+          has_one_box_folder(name, method_name: "#{name}_definitions")
 
           define_method "#{name}=" do |value|
-            task = Boxable::AttachmentTask.new(:has_one_picture, name, value)
+            task = Boxable::AttachmentTask.new(:one_picture, name, nil, value)
             if self.new_record?
               after_create_box_attachments << task
             else
@@ -145,10 +114,8 @@ module Boxable
           end
 
           define_method name do
-            send("#{name}_definitions").find('original')
+            send("#{name}_definitions").file('original')
           end
-
-          self.boxable_config.box_pictures << "#{name}_definitions"
         end
       end
 
@@ -160,17 +127,25 @@ module Boxable
           @after_create_box_attachments_impl
         end
 
-        def build_box_attached(attribute_name)
-          params = self.boxable_config.attr_params[attribute_name]
-          case self.class.boxable_config.attribute_type(attribute_name)
-          when :box_file
-            got = self.box_files.find_by(basename: attribute_name)
-            got ? got : self.box_files.build(params)
-          when :box_file_collection, :box_picture
-            got = self.box_file_collections.find_by(basename: attribute_name)
-            got ? got : self.box_file_collections.build(params)
+        def box_folder_root_parent
+          if boxable_config.parent
+            meta = self.class.box_parent_meta
+            send(meta[:parent_method]).box_folder_instance(meta[:parent_association])
           else
-            raise "Unknown attribute type: #{self.class.boxable_config.attribute_type(attribute_name)}"
+            BoxFolder.root.sub(self.class.table_name)
+          end
+        end
+
+        def box_folder_root
+          case self.boxable_config.folder
+          when :parent  # Boxable instance folder is located in parent
+            send(self.boxable_config.parent).box_folder_root
+          when :common
+            box_folder_root_parent
+          when nil
+            bound_box_folder || create_bound_box_folder(parent: box_folder_root_parent, name_method: :slug)
+          else
+            raise "Unknown Boxable folder mode '#{self.boxable_config.folder}'"
           end
         end
 
@@ -178,54 +153,15 @@ module Boxable
         # @option [Symbol] attribute_name - Name of the attribute
         # @return String
         def box_folder_instance(attribute_name = nil)
-          case self.boxable_config.folder
-          when :parent  # Boxable instance folder is located in parent
-            send(self.boxable_config.parent).box_folder_instance(attribute_name)
-          when :common
-            meta = self.class.box_parent_meta
-            send(meta[:parent_method]).box_folder_instance(meta[:parent_association]).sub(attribute_name)
-          when nil
-            box_folders.find_by(attribute_name: attribute_name) || box_folders.create!(attribute_name: attribute_name)
-          else
-            raise "Unknown Boxable folder mode '#{self.boxable_config.folder}'"
-          end
+          root = box_folder_root
+          attribute_name ? root.sub(attribute_name) : root
         end
 
         # @abstract Get the box folder id for the object (attribute_name = nil), or an attribute
         # @option [Symbol] attribute_name - Name of the attribute
         # @return String
         def box_folder(attribute_name = nil)
-          box_folder_instance(attribute_name).folder
-        end
-
-        # @abstract Get the parent of the box folder for the object (attribute_name = nil), or an attribute
-        # @option [Symbol] attribute_name - Name of the attribute
-        # @return String
-        def box_parent_folder(attribute_name = nil)
-          box_folder_instance(attribute_name).parent
-        end
-
-        # @abstract Get parent folder id for objects and attribute
-        # @param [Symbol] parent_name - Method to call to get parent folder (in case of attribute)
-        # @note Set above parameter to nil if object folder
-        # @note That method differs from above by the fact it can be used by an object without BoxFolder associated (used on initialization)
-        # @return String
-        def boxable_parent_id(attribute_name)
-          # Check whether we have an object or attribute folder
-          if attribute_name
-            # Attribute folder, parent is object associated
-            box_folder
-          else
-            # Object folder, check whether the class has a parent or not
-            if self.class.boxable_config.parent
-              # Get parent folder id
-              meta = self.class.box_parent_meta
-              send(meta[:parent_method]).box_folder(meta[:parent_association])
-            else
-              # Class has no parent, get folder in box root
-              self.class.box_folder_id_in_root
-            end
-          end
+          box_folder_instance(attribute_name).folder_id
         end
       end
     end

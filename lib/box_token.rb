@@ -17,7 +17,7 @@ class BoxToken < ActiveRecord::Base
   end
 
   def self.root
-    self.for(BoxFolder.root, nil, instance: true)
+    self.for(BoxFolder.root.folder_id, nil, instance: true)
   end
 
   def self.client

@@ -11,7 +11,6 @@ require 'box_token'
 require 'box_tokens_controller'
 require 'box_folder'
 require 'box_file'
-require 'box_file_collection'
 
 begin
   YAML::load_file(Boxable::Helper.config_path).each { |k, v| ENV[k] = v }
@@ -29,9 +28,9 @@ module Boxable
     end
 
     # configure our plugin on boot
-    #initializer "cocoon.initialize" do |app|
+    #initializer "boxable.initialize" do |app|
     #  ActiveSupport.on_load :action_view do
-    #    ActionView::Base.send :include, Cocoon::ViewHelpers
+    #    ActionView::Base.send :include, Boxable::ViewHelpers
     #  end
     #end
 
