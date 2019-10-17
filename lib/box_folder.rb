@@ -56,7 +56,10 @@ class BoxFolder < ActiveRecord::Base
   end
 
   def self.root
-    find_by(parent: nil)
+    res = find_by(parent: nil)
+    raise 'No Box folder root defined.' unless res
+
+    res
   end
 
   def self.temp

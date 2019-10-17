@@ -137,15 +137,15 @@ module Boxable
         end
 
         def box_folder_root
-          case self.boxable_config.folder
+          case self.class.boxable_config.folder
           when :parent  # Boxable instance folder is located in parent
-            send(self.boxable_config.parent).box_folder_root
+            send(self.class.boxable_config.parent).box_folder_root
           when :common
             box_folder_root_parent
           when nil
-            bound_box_folder || create_bound_box_folder(parent: box_folder_root_parent, name_method: :slug)
+            bound_box_folder || create_bound_box_folder(parent: box_folder_root_parent, name_method: self.class.boxable_config.name)
           else
-            raise "Unknown Boxable folder mode '#{self.boxable_config.folder}'"
+            raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
           end
         end
 

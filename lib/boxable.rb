@@ -12,12 +12,6 @@ require 'box_tokens_controller'
 require 'box_folder'
 require 'box_file'
 
-begin
-  YAML::load_file(Boxable::Helper.config_path).each { |k, v| ENV[k] = v }
-rescue Errno::ENOENT
-  puts 'No box config file found. Try running rake boxable:install.'
-end
-
 module Boxable
   class Engine < ::Rails::Engine
 
