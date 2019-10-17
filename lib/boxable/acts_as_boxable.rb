@@ -130,7 +130,7 @@ module Boxable
         def box_folder_root_parent
           if boxable_config.parent
             meta = self.class.box_parent_meta
-            send(meta[:parent_method]).box_folder_instance(meta[:parent_association])
+            send(meta[:parent_method]).box_folder(meta[:parent_association])
           else
             BoxFolder.root.sub(self.class.table_name)
           end
@@ -152,7 +152,7 @@ module Boxable
         # @abstract Get the BoxFolder for the object (attribute_name = nil), or an attribute
         # @option [Symbol] attribute_name - Name of the attribute
         # @return String
-        def box_folder_instance(attribute_name = nil)
+        def box_folder(attribute_name = nil)
           root = box_folder_root
           attribute_name ? root.sub(attribute_name) : root
         end
@@ -160,8 +160,8 @@ module Boxable
         # @abstract Get the box folder id for the object (attribute_name = nil), or an attribute
         # @option [Symbol] attribute_name - Name of the attribute
         # @return String
-        def box_folder(attribute_name = nil)
-          box_folder_instance(attribute_name).folder_id
+        def box_folder_id(attribute_name = nil)
+          box_folder(attribute_name).folder_id
         end
       end
     end
