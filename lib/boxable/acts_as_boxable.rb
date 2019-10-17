@@ -43,15 +43,9 @@ module Boxable
           prepend InstanceMethods
         end
 
-        if self.boxable_config.folder.nil?
-          class_eval do
-            # Define a slug based on full_name, used for Box folder name
-            extend FriendlyId
-            friendly_id :full_name, use: :slugged
-          end
-        else
-          valid = %i[parent common]
-          raise "Unknown Boxable folder mode '#{self.boxable_config.folder}' for class '#{self.name}'.\nValid modes are #{valid}" unless self.boxable_config.folder.in?(valid)
+        valid_folder_modes = %i[parent common unique]
+        unless self.boxable_config.folder.in?(valid_folder_modes)
+          raise "Unknown Boxable folder mode '#{self.boxable_config.folder}' for class '#{self.name}'.\nValid modes are #{valid_folder_modes}"
         end
 
         begin
@@ -70,8 +64,6 @@ module Boxable
               t.perform_for self
             end
           end
-
-          prepend InstanceMethods
         end
       end
 
@@ -82,12 +74,7 @@ module Boxable
           end
 
           define_method "#{basename}=" do |value|
-            task = Boxable::AttachmentTask.new(:one_file, basename, name_method, value)
-            if self.new_record?
-              after_create_box_attachments << task
-            else
-              task.perform_for self
-            end
+            Boxable::AttachmentTask.schedule_for(self, :one_file, basename, name_method, value)
           end
         end
       end
@@ -105,12 +92,7 @@ module Boxable
           has_one_box_folder(name, method_name: "#{name}_definitions")
 
           define_method "#{name}=" do |value|
-            task = Boxable::AttachmentTask.new(:one_picture, name, nil, value)
-            if self.new_record?
-              after_create_box_attachments << task
-            else
-              task.perform_for self
-            end
+            Boxable::AttachmentTask.schedule_for(self, :one_picture, name, nil, value)
           end
 
           define_method name do
@@ -138,11 +120,11 @@ module Boxable
 
         def box_folder_root
           case self.class.boxable_config.folder
-          when :parent  # Boxable instance folder is located in parent
+          when :parent # Boxable folder is parent folder
             send(self.class.boxable_config.parent).box_folder_root
-          when :common
+          when :common # Boxable folder is dedicated folder of the association in the parent
             box_folder_root_parent
-          when nil
+          when :unique # Boxable folder is unique to this record, and is located in a sub folder of the parent (default mode)
             bound_box_folder || create_bound_box_folder(parent: box_folder_root_parent, name_method: self.class.boxable_config.name)
           else
             raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"

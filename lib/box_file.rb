@@ -1,20 +1,12 @@
 class BoxFile < ActiveRecord::Base
   belongs_to :parent, class_name: 'BoxFolder', optional: true
-  belongs_to :boxable, polymorphic: true, optional: true
+  bound_to_boxable
 
   before_save do
     update_file
   end
   after_destroy do
     destroy_file
-  end
-
-  def name_from_boxable
-    if name_method
-      boxable.send(name_method)
-    else
-      name
-    end
   end
 
   def update_file

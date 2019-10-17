@@ -17,5 +17,14 @@ module Boxable
         raise "Unknown task type: '#{@type}'"
       end
     end
+
+    def self.schedule_for(object, type, name, name_method, value)
+      task = self.new(type, name, name_method, value)
+      if object.new_record?
+        object.after_create_box_attachments << task
+      else
+        task.perform_for object
+      end
+    end
   end
 end

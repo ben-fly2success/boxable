@@ -33,5 +33,9 @@ module Boxable
     def self.config_path
       'config/boxable.yml'
     end
+
+    def self.root_name
+      '____BOXABLE_ROOT____'
+    end
   end
 end

@@ -4,7 +4,7 @@ class Boxable::Task::Install
       BoxFolder.all.each &:delete
       client = Boxr::Client.new(BoxToken.token.access_token)
       root = client.folder_from_path(root_name)
-      BoxFolder.create(parent: nil, folder_id: root.id)
+      BoxFolder.create(name: Boxable::Helper.root_name, parent: nil, folder_id: root.id)
     end
 
     private

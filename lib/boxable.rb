@@ -1,4 +1,5 @@
 require 'boxable/acts_as_boxable'
+require 'boxable/bound_to_boxable'
 require 'boxable/boxable_config'
 require 'boxable/after_create_attachment'
 require 'boxable/task'

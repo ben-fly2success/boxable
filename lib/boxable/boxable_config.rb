@@ -15,7 +15,7 @@ module Boxable
       self.box_files = []
       self.box_file_collections = []
       self.box_pictures = []
-      self.folder = options[:folder]
+      self.folder = options[:folder] || :unique
       self.name = options[:name] || :slug
       self.attr_params = {}
     end
