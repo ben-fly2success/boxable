@@ -11,13 +11,13 @@ module Boxable
       when :has_one
         dst = object.send(@name)
         unless dst
-          dst = object.build_box_associated(@name)
+          dst = object.build_box_attached(@name)
         end
         dst.attach(@value)
       when :has_one_picture
         dst = object.send("#{@name}_definitions")
         unless dst
-          dst = object.build_box_associated("#{@name}_definitions")
+          dst = object.build_box_attached("#{@name}_definitions")
         end
         dst.add('original', @value, generate_url: true)
       else

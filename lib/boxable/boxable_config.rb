@@ -1,7 +1,7 @@
 module Boxable
   class BoxableConfig
     attr_accessor :parent
-    attr_accessor :folder_is_parent
+    attr_accessor :folder
 
     attr_accessor :box_files
     attr_accessor :box_file_collections
@@ -14,7 +14,7 @@ module Boxable
       self.box_files = []
       self.box_file_collections = []
       self.box_pictures = []
-      self.folder_is_parent = options[:folder_is_parent] ? true : false
+      self.folder = options[:folder]
       self.attr_params = {}
     end
 

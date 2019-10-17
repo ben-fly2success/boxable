@@ -1,21 +1,37 @@
 class BoxFolder < ActiveRecord::Base
   belongs_to :boxable, polymorphic: true
+  has_many :box_folders, as: :boxable, dependent: :destroy
 
-  after_commit :create_folder, on: :create
-  after_commit :destroy_folder, on: :destroy
-
-  attr_accessor :name
+  before_create do
+    create_folder
+  end
+  after_destroy do
+    destroy_folder
+  end
 
   def create_folder
     parent_id = boxable.boxable_parent_id(attribute_name)
     self.parent = parent_id
     self.folder = Boxable::Helper.get_folder_or_create(attribute_name ? attribute_name : boxable.slug, parent_id).id
-    self.save!
   end
 
   def destroy_folder
-    client = BoxToken.client
-    client.delete_folder(client.folder_from_id(folder))
+    if folder
+      client = BoxToken.client
+      client.delete_folder(client.folder_from_id(folder))
+    end
+  end
+
+  def boxable_parent_id(attribute_name = nil)
+    self.folder
+  end
+
+  def sub(attribute_name = nil)
+    if attribute_name
+      box_folders.find_by(attribute_name: attribute_name) || box_folders.create!(attribute_name: attribute_name)
+    else
+      self
+    end
   end
 
   def self.env_folder(name)

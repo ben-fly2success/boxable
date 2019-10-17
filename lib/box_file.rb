@@ -3,7 +3,9 @@ class BoxFile < ActiveRecord::Base
 
   validates_presence_of :basename
 
-  after_commit :detach, on: :destroy
+  after_destroy do
+    detach
+  end
 
   def used_basename(given)
     if self.name_method
