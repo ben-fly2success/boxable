@@ -3,7 +3,6 @@ require 'boxable/bound_to_boxable'
 require 'boxable/boxable_config'
 require 'boxable/after_create_attachment'
 require 'boxable/task'
-require 'boxable/task/install'
 require 'boxable/helper'
 require 'boxable/railtie'
 require 'boxable/error'
@@ -14,6 +13,13 @@ require 'box_folder'
 require 'box_file'
 
 module Boxable
+  mattr_accessor :root
+  @@root = '/'
+
+  def self.setup
+    yield self
+  end
+
   class Engine < ::Rails::Engine
 
     config.before_initialize do

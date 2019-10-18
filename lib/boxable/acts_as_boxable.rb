@@ -125,7 +125,7 @@ module Boxable
           when :common # Boxable folder is dedicated folder of the association in the parent
             box_folder_root_parent
           when :unique # Boxable folder is unique to this record, and is located in a sub folder of the parent (default mode)
-            bound_box_folder || create_bound_box_folder(parent: box_folder_root_parent, name_method: self.class.boxable_config.name)
+            bound_box_folder || send("#{new_record? ? 'build' : 'create'}_bound_box_folder", parent: box_folder_root_parent, name_method: self.class.boxable_config.name)
           else
             raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
           end

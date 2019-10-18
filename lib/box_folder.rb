@@ -39,7 +39,7 @@ class BoxFolder < ActiveRecord::Base
   # @note A BoxFolder will be created if not present
   # @return BoxFolder
   def sub(name)
-    folder(name) || box_folders.create!(name: name)
+    folder(name) || box_folders.send(boxable&.new_record? ? 'build' : 'create!', name: name)
   end
 
   # @abstract Get a file in the folder
@@ -86,8 +86,12 @@ class BoxFolder < ActiveRecord::Base
   # @abstract Get BoxFolder record for root.
   # @return BoxFolder
   def self.root
-    res = find_by(parent: nil, name: Boxable::Helper.root_name)
-    raise 'No Box folder root defined.' unless res
+    res = find_by(parent: nil, name: Boxable.root)
+    unless res
+      client = Boxr::Client.new(BoxToken.token.access_token)
+      root = client.folder_from_path(Boxable.root)
+      res = BoxFolder.create(name: Boxable.root, parent: nil, folder_id: root.id)
+    end
 
     res
   end
@@ -95,6 +99,6 @@ class BoxFolder < ActiveRecord::Base
   # @abstract Get BoxFolder record for temporary folder.
   # @return BoxFolder
   def self.temp
-    root.sub('temp_folder')
+    root.sub('temp_upload')
   end
 end
