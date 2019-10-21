@@ -1,17 +1,12 @@
 function BoxFileInput(file_input) {
     var dst_field = $(`#${file_input}`).data('dst-field');
+    var name_field = $(`#${file_input}`).data('name-field');
     let preview = $(`#${file_input}`).data('preview');
     var spinner = $(`#${file_input}`).data('spinner');
     console.log(file_input);
     var overwrite = true; // Set to false to prevent overwriting in case of conflicts
     var fileUploaded = false;
-
-    var showUploader = function(e) {
-        myModal = $('#exampleModal');
-        fileName = e.dataset.fileName;
-        fileField = e.dataset.index;
-        myModal.modal('show');
-    };
+    let fileName = null;
 
     $(`#${file_input}`).on('input', function () {
         if ($(`#${file_input}`).prop('files').length > 0) {
@@ -24,6 +19,8 @@ function BoxFileInput(file_input) {
             }
             $(`#${spinner}`).attr('style', 'display: block');
             $(`#${preview}`).attr('style', 'filter: brightness(50%);');
+            $(`#${name_field}`).html(fileName);
+            fileName = $(`#${file_input}`).prop('files')[0].name;
             upload();
         };
     });
@@ -89,6 +86,7 @@ function BoxFileInput(file_input) {
                 $(`#${dst_field}`).val(json.entries[0]['id']);
                 $(`#${spinner}`).attr('style', 'display: none');
                 $(`#${preview}`).attr('style', '');
+                $(`#${name_field}`).html(fileName);
             });            // Upload was successful
             $(`#${file_input}`).val('');
             clearFileInput();
