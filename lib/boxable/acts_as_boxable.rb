@@ -67,46 +67,41 @@ module Boxable
         end
       end
 
-      def has_one_box_file(basename, name_method: nil)
+      def has_one_box_file(name, name_method: nil, generate_url: false)
         class_eval do
-          define_method(basename) do
-            box_folder_root.file(basename)
+          define_method(name) do
+            box_folder_root.file(name, self)
           end
 
-          define_method "#{basename}=" do |value|
-            Boxable::AttachmentTask.schedule_for(self, :one_file, basename, name_method, value)
+          define_method "#{name}=" do |value|
+            Boxable::AttachmentTask.schedule_for(self, :one_file, name, name_method && send(name_method), value, generate_url: generate_url)
           end
         end
       end
 
-      def has_one_box_folder(name, method_name: name)
+      def has_one_box_folder(name)
         class_eval do
-          define_method(method_name) do
+          define_method(name) do
             box_folder_root.sub(name)
           end
         end
       end
 
-      def has_one_box_picture(name)
+      def has_one_box_picture(name, generate_url: true)
         class_eval do
-          has_one_box_folder(name, method_name: "#{name}_definitions")
-
           define_method "#{name}=" do |value|
-            Boxable::AttachmentTask.schedule_for(self, :one_picture, name, nil, value)
+            Boxable::AttachmentTask.schedule_for(self, :one_picture, name, nil, value, generate_url: generate_url)
           end
 
           define_method name do
-            send("#{name}_definitions").file('original')
+            box_folder_root.sub(name).file('original', self)
           end
         end
       end
 
       module InstanceMethods
         def after_create_box_attachments
-          unless @after_create_box_attachments_impl
-            @after_create_box_attachments_impl = []
-          end
-          @after_create_box_attachments_impl
+          @after_create_box_attachments_impl ||= []
         end
 
         def box_folder_root_parent
@@ -125,7 +120,9 @@ module Boxable
           when :common # Boxable folder is dedicated folder of the association in the parent
             box_folder_root_parent
           when :unique # Boxable folder is unique to this record, and is located in a sub folder of the parent (default mode)
-            bound_box_folder || send("#{new_record? ? 'build' : 'create'}_bound_box_folder", parent: box_folder_root_parent, name_method: self.class.boxable_config.name)
+            bound_box_folder || send("#{new_record? ? 'build' : 'create'}_bound_box_folder",
+                                     name: send(self.class.boxable_config.name),
+                                     parent: box_folder_root_parent)
           else
             raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
           end
@@ -144,6 +141,10 @@ module Boxable
         # @return String
         def box_folder_id(attribute_name = nil)
           box_folder(attribute_name).folder_id
+        end
+
+        def box_file(attribute_name)
+          box_folder_root.file(attribute_name)
         end
       end
     end

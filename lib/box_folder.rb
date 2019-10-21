@@ -2,6 +2,9 @@ class BoxFolder < ActiveRecord::Base
   belongs_to :parent, class_name: 'BoxFolder', optional: true
   bound_to_boxable
 
+  # The name is the internal identifier of the folder, it must be present
+  validates_presence_of :name
+
   has_many :box_folders, foreign_key: :parent_id, dependent: :destroy
   has_many :box_files, foreign_key: :parent_id, dependent: :destroy
 
@@ -14,7 +17,8 @@ class BoxFolder < ActiveRecord::Base
 
   def create_folder
     unless self.folder_id
-      self.folder_id = Boxable::Helper.get_folder_or_create(name_from_boxable, parent.folder_id).id
+      # Retrieve (or create) the folder if not given
+      self.folder_id = Boxable::Helper.get_folder_or_create(name, parent.folder_id).id
     end
   end
 
@@ -29,7 +33,7 @@ class BoxFolder < ActiveRecord::Base
 
   # @abstract Get a sub folder
   # @param [Symbol] name - Name of the folder to retrieve
-  # @return BoxFolder or nil
+  # @return [BoxFolder || NilClass]
   def folder(name)
     box_folders.find_by(name: name)
   end
@@ -37,26 +41,27 @@ class BoxFolder < ActiveRecord::Base
   # @abstract Get or create a sub folder
   # @param [Symbol] name - Name of the folder to retrieve
   # @note A BoxFolder will be created if not present
-  # @return BoxFolder
+  # @return [BoxFolder]
   def sub(name)
     folder(name) || box_folders.send(boxable&.new_record? ? 'build' : 'create!', name: name)
   end
 
   # @abstract Get a file in the folder
   # @param [Symbol] name - Name of the file to retrieve
-  # @return BoxFile or nil
-  def file(name)
-    box_files.find_by(name: name)
+  # @param [ApplicationRecord] boxable - Associated object
+  # @return [BoxFile || NilClass]
+  def file(name, boxable = nil)
+    box_files.find_by(boxable: boxable, name: name)
   end
 
   # @abstract Add or update a file in the folder
-  # @param [String] name - Internal name of the file (will be used for Box file default name)
+  # @param [Symbol] name - Internal name of the file (will be used for Box file default name)
   # @param [String] file_id - ID of the file to add
   # @option [ApplicationRecord] boxable - Object to which the file is attached
-  # @option [Symbol] name_method - Name of the method to call on boxable to get Box file name
-  # @return BoxFile or nil
-  def add_file(name, file_id, boxable = nil, name_method = nil)
-    res = file(name)
+  # @option [Bool] generate_url - Indicate whether a shared link should be created or not
+  # @return [BoxFile || NilClass]
+  def add_file(name, file_id, boxable = nil, basename: nil, generate_url: false)
+    res = file(name, boxable)
     if res
       return res if res.file_id == file_id
 
@@ -64,23 +69,29 @@ class BoxFolder < ActiveRecord::Base
     end
     res = nil
     if file_id && file_id != ""
-      res = box_files.create!(name: name, file_id: file_id, boxable: boxable, name_method: name_method)
+      res = box_files.create!(name: name,
+                              basename: basename,
+                              file_id: file_id,
+                              boxable: boxable,
+                              generate_url: generate_url)
     end
     res
   end
 
   # @abstract Print the tree of items below the folder
-  def print_tree(depth = 0)
+  # @option [Boolean] verbose
+  # @return [NilClass]
+  def print_tree(depth = 0, verbose: false)
     res = []
-    res << "#{'    ' * depth}#{self.name_from_boxable}"
+    res << "#{'    ' * depth}#{name}"
     box_folders.each do |sub|
-      res += sub.print_tree(depth + 1)
+      res += sub.print_tree(depth + 1, verbose: verbose)
     end
     box_files.each do |f|
-      res << "#{'    ' * (depth + 1)}#{f.name_from_boxable}"
+      res << "#{'    ' * (depth + 1)}#{verbose ? "#{f.name}: " : ""}#{f.full_name}"
     end
     puts res.join("\n") if depth == 0
-    res
+    res if depth > 0
   end
 
   # @abstract Get BoxFolder record for root.
@@ -92,13 +103,12 @@ class BoxFolder < ActiveRecord::Base
       root = client.folder_from_path(Boxable.root)
       res = BoxFolder.create(name: Boxable.root, parent: nil, folder_id: root.id)
     end
-
     res
   end
 
   # @abstract Get BoxFolder record for temporary folder.
   # @return BoxFolder
   def self.temp
-    root.sub('temp_upload')
+    root.sub(:temp_upload)
   end
 end

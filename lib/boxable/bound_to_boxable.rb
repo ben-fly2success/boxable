@@ -14,15 +14,6 @@ module Boxable
     end
 
     module InstanceMethods
-      # @abstract Get name used for Box file
-      # @return String
-      def name_from_boxable
-        if name_method
-          boxable.send(name_method)
-        else
-          name
-        end
-      end
     end
   end
 end
