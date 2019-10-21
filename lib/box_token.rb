@@ -1,11 +1,11 @@
 class BoxToken < ActiveRecord::Base
   def self.token
-    Boxr.get_enterprise_token(private_key: ENV['BOX_PRIVATE_KEY'],
-                              private_key_password: ENV['BOX_PASSPHRASE'],
-                              public_key_id: ENV['BOX_PUBLIC_KEY_ID'],
-                              enterprise_id: ENV['BOX_ENTERPRISE_ID'],
-                              client_id: ENV['BOX_CLIENT_ID'],
-                              client_secret: ENV['BOX_CLIENT_SECRET'])
+    Boxr.get_enterprise_token(private_key: Boxable.private_key,
+                              private_key_password: Boxable.private_key_password,
+                              public_key_id: Boxable.public_key_id,
+                              enterprise_id: Boxable.enterprise_id,
+                              client_id: Boxable.client_id,
+                              client_secret: Boxable.client_secret)
   end
 
   def self.for(folder, rights = 'base_preview', instance: false)

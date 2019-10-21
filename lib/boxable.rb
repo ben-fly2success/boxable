@@ -16,6 +16,13 @@ module Boxable
   mattr_accessor :root
   @@root = '/'
 
+  mattr_accessor :private_key
+  mattr_accessor :private_key_password
+  mattr_accessor :public_key_id
+  mattr_accessor :enterprise_id
+  mattr_accessor :client_id
+  mattr_accessor :client_secret
+
   def self.setup
     yield self
   end
