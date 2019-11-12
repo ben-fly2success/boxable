@@ -205,4 +205,4 @@ const Boxable = function() {
     this.temp_folder = new this.BoxFolder('/box_tokens/temp');
 };
 
-boxable = new Boxable();
+let boxable = new Boxable();

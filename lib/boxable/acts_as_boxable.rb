@@ -74,7 +74,7 @@ module Boxable
           end
 
           define_method "#{name}=" do |value|
-            Boxable::AttachmentTask.schedule_for(self, :one_file, name, name_method && send(name_method), value, generate_url: generate_url)
+            Boxable::AttachmentTask.schedule_for(self, :one_file, name, name_method, value, generate_url: generate_url)
           end
         end
       end
