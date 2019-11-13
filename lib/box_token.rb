@@ -8,16 +8,13 @@ class BoxToken < ActiveRecord::Base
                               client_secret: Boxable.client_secret)
   end
 
-  def self.for(folder, rights = 'base_preview', instance: false)
-    res = self.find_by(folder: folder, rights: rights)
-    unless res
-      res = self.create!(folder: folder, rights: rights)
-    end
+  def self.for(resource_id, resource_type, rights = 'base_preview', instance: false)
+    res = find_by(resource_id: resource_id, resource_type: resource_type, rights: rights) || create!(resource_id: resource_id, resource_type: resource_type, rights: rights)
     instance ? res : res.token
   end
 
   def self.root
-    self.for(BoxFolder.root.folder_id, nil, instance: true)
+    BoxFolder.root.token(instance: true)
   end
 
   def self.client
@@ -46,7 +43,7 @@ class BoxToken < ActiveRecord::Base
 
   def generate_token
     if rights
-      Boxr.exchange_token(BoxToken.root.token, rights, resource_id: folder, resource_type: :folder)
+      Boxr.exchange_token(BoxToken.root.token, rights, resource_id: resource_id, resource_type: resource_type.to_sym)
     else
       self.class.token
     end

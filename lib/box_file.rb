@@ -34,4 +34,12 @@ class BoxFile < ActiveRecord::Base
       puts "Can't destroy Box file: #{file_id}"
     end
   end
+
+  def token_for(rights, instance: false)
+    BoxToken.for(file_id, :file, rights, instance: instance)
+  end
+
+  def token(instance: false)
+    token_for(nil, instance: instance)
+  end
 end

@@ -111,4 +111,12 @@ class BoxFolder < ActiveRecord::Base
   def self.temp
     root.sub(:temp_upload)
   end
+
+  def token_for(rights, instance: false)
+    BoxToken.for(folder_id, :folder, rights, instance: instance)
+  end
+
+  def token(instance: false)
+    token_for(nil, instance: instance)
+  end
 end
