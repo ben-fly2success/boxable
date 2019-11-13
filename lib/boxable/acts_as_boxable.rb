@@ -59,8 +59,8 @@ module Boxable
         end
 
         class_eval do
-          after_create do
-            after_create_box_attachments.each do |t|
+          before_validation(on: :create) do
+            while (t = boxable.deferred_attachments.pop)
               t.perform_for self
             end
           end
@@ -70,7 +70,7 @@ module Boxable
       def has_one_box_file(name, name_method: nil, generate_url: false)
         class_eval do
           define_method(name) do
-            box_folder_root.file(name, self)
+            box_folder_root.file(name, self) || boxable.stub.files[name]
           end
 
           define_method "#{name}=" do |value|
@@ -94,14 +94,14 @@ module Boxable
           end
 
           define_method name do
-            box_folder_root.sub(name).file('original', self)
+            box_folder_root.sub(name).file('original', self) || boxable.stub.pictures[name]
           end
         end
       end
 
       module InstanceMethods
-        def after_create_box_attachments
-          @after_create_box_attachments_impl ||= []
+        def boxable
+          @boxable ||= Boxable::InstanceBase.new
         end
 
         def box_folder_root_parent
@@ -126,6 +126,24 @@ module Boxable
           else
             raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
           end
+        end
+
+        def build_box_file(parent, name, file_id, basename: nil, generate_url: false)
+          res = parent.file(name, self)
+          if res
+            return res if res.file_id == file_id
+
+            res.destroy
+          end
+          res = nil
+          if file_id && file_id != ""
+            res = box_files.build(parent: parent,
+                                  name: name,
+                                  basename: basename,
+                                  file_id: file_id,
+                                  generate_url: generate_url)
+          end
+          res
         end
 
         # @abstract Get the BoxFolder for the object (attribute_name = nil), or an attribute

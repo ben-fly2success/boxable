@@ -6,6 +6,7 @@ require 'boxable/task'
 require 'boxable/helper'
 require 'boxable/railtie'
 require 'boxable/error'
+require 'boxable/instance_base'
 
 require 'box_token'
 require 'box_tokens_controller'
