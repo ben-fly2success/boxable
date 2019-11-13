@@ -3,10 +3,19 @@ function BoxFileInput(file_input) {
     var name_field = $(`#${file_input}`).data('name-field');
     let preview = $(`#${file_input}`).data('preview');
     var spinner = $(`#${file_input}`).data('spinner');
-    console.log(file_input);
+    let mandatory = $(`#${file_input}`).data('mandatory');
+    //console.log(file_input);
     var overwrite = true; // Set to false to prevent overwriting in case of conflicts
     var fileUploaded = false;
     let fileName = null;
+
+    var refreshSubmit = function() {
+        if (mandatory) {
+            $(`#${dst_field}`).parents("form").find("input[type=submit]")[0].disabled = !$(`#${dst_field}`).val();
+        }
+    };
+
+    refreshSubmit();
 
     $(`#${file_input}`).on('input', function () {
         if ($(`#${file_input}`).prop('files').length > 0) {
@@ -84,6 +93,7 @@ function BoxFileInput(file_input) {
             response.json().then(function(json) {
                 fileUploaded = true;
                 $(`#${dst_field}`).val(json.entries[0]['id']);
+                refreshSubmit();
                 $(`#${spinner}`).attr('style', 'display: none');
                 $(`#${preview}`).attr('style', '');
                 $(`#${name_field}`).html(fileName);
