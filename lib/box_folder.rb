@@ -1,14 +1,14 @@
 class BoxFolder < ActiveRecord::Base
   belongs_to :parent, class_name: 'BoxFolder', optional: true
-  bound_to_boxable
+  belongs_to :boxable, polymorphic: true, optional: true
 
   # The name is the internal identifier of the folder, it must be present
-  validates_presence_of :name
+  validates_presence_of :name, :folder_id
 
   has_many :box_folders, foreign_key: :parent_id, dependent: :destroy
   has_many :box_files, foreign_key: :parent_id, dependent: :destroy
 
-  before_create do
+  before_validation(on: :create) do
     create_folder
   end
   after_destroy do
@@ -60,7 +60,7 @@ class BoxFolder < ActiveRecord::Base
   # @option [ApplicationRecord] boxable - Object to which the file is attached
   # @option [Bool] generate_url - Indicate whether a shared link should be created or not
   # @return [BoxFile || NilClass]
-  def add_file(name, file_id, boxable = nil, basename: nil, generate_url: false)
+  def add_file(name, file_id, boxable = nil, filename: nil, generate_url: false)
     res = file(name, boxable)
     if res
       return res if res.file_id == file_id
@@ -70,7 +70,7 @@ class BoxFolder < ActiveRecord::Base
     res = nil
     if file_id && file_id != ""
       res = box_files.create!(name: name,
-                              basename: basename,
+                              filename: filename,
                               file_id: file_id,
                               boxable: boxable,
                               generate_url: generate_url)

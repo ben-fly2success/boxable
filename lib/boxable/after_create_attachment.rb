@@ -11,9 +11,9 @@ module Boxable
     def perform_for(object)
       case @type
       when :one_file
-        object.boxable.stub.files[@name] = object.build_box_file(object.box_folder_root, @name, @value, basename: @name_method && object.send(@name_method), generate_url: @generate_url)
+        object.boxable.stub.files[@name] = object.build_box_file(object.box_folder_root, @name, @value, filename: @name_method && object.send(@name_method))
       when :one_picture
-        object.boxable.stub.pictures[@name] = object.build_box_file(object.box_folder_root.sub(@name), 'original', @value, generate_url: @generate_url)
+        object.boxable.stub.pictures[@name] = object.build_box_file(object.box_folder_root.sub(@name), 'original', @value)
       else
         raise "Unknown task type: '#{@type}'"
       end

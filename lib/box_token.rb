@@ -1,4 +1,10 @@
 class BoxToken < ActiveRecord::Base
+  validates_presence_of :resource_id, :resource_type
+
+  before_validation(on: :save) do
+    ensure_token_valid
+  end
+
   def self.token
     Boxr.get_enterprise_token(private_key: Boxable.private_key,
                               private_key_password: Boxable.private_key_password,

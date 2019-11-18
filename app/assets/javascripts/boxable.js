@@ -4,6 +4,7 @@ function BoxFileInput(file_input) {
     let preview = $(`#${file_input}`).data('preview');
     var spinner = $(`#${file_input}`).data('spinner');
     let mandatory = $(`#${file_input}`).data('mandatory');
+    let no_upload = $(`#${file_input}`).data('no-upload');
     //console.log(file_input);
     var overwrite = true; // Set to false to prevent overwriting in case of conflicts
     var fileUploaded = false;
@@ -26,11 +27,15 @@ function BoxFileInput(file_input) {
                 };
                 reader.readAsDataURL($(`#${file_input}`).prop('files')[0]);
             }
-            $(`#${spinner}`).attr('style', 'display: block');
-            $(`#${preview}`).attr('style', 'filter: brightness(50%);');
-            $(`#${name_field}`).html(fileName);
             fileName = $(`#${file_input}`).prop('files')[0].name;
-            upload();
+            $(`#${name_field}`).html(fileName);
+            if (no_upload) {
+                refreshSubmit();
+            } else {
+                $(`#${spinner}`).attr('style', 'display: block');
+                $(`#${preview}`).attr('style', 'filter: brightness(50%);');
+                upload();
+            }
         };
     });
 
@@ -206,8 +211,8 @@ const Boxable = function() {
         $('.box-file-input').each(function(i, el) {
             if ($(el).data('init'))
                 return;
-            new BoxFileInput($(el).attr('id'));
             $(el).data('init', true);
+            new BoxFileInput($(el).attr('id'));
         });
     };
 

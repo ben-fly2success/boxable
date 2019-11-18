@@ -59,22 +59,27 @@ module Boxable
         end
 
         class_eval do
-          before_validation(on: :create) do
-            while (t = boxable.deferred_attachments.pop)
-              t.perform_for self
+          after_save do
+            boxable.stub.files.each do |k, v|
+              v.save!
+            end
+            boxable.stub.pictures.each do |k, v|
+              v.save!
             end
           end
         end
       end
 
-      def has_one_box_file(name, name_method: nil, generate_url: false)
+      def has_one_box_file(name, name_method: nil)
         class_eval do
           define_method(name) do
             box_folder_root.file(name, self) || boxable.stub.files[name]
           end
 
           define_method "#{name}=" do |value|
-            Boxable::AttachmentTask.schedule_for(self, :one_file, name, name_method, value, generate_url: generate_url)
+            if value && value != ""
+              boxable.stub.files[@name] = build_box_file(box_folder_root, name, value, filename: name_method && send(name_method))
+            end
           end
         end
       end
@@ -87,10 +92,12 @@ module Boxable
         end
       end
 
-      def has_one_box_picture(name, generate_url: true)
+      def has_one_box_picture(name)
         class_eval do
           define_method "#{name}=" do |value|
-            Boxable::AttachmentTask.schedule_for(self, :one_picture, name, nil, value, generate_url: generate_url)
+            if value && value != ""
+              boxable.stub.pictures[@name] = build_box_file(box_folder_root.sub(name), 'original', value)
+            end
           end
 
           define_method name do
@@ -128,20 +135,12 @@ module Boxable
           end
         end
 
-        def build_box_file(parent, name, file_id, basename: nil, generate_url: false)
-          res = parent.file(name, self)
-          if res
-            return res if res.file_id == file_id
-
+        def build_box_file(parent, name, file, filename: nil)
+          res = parent.file(name, self) || box_files.build(parent: parent, name: name)
+          if file == :destroy
             res.destroy
-          end
-          res = nil
-          if file_id && file_id != ""
-            res = box_files.build(parent: parent,
-                                  name: name,
-                                  basename: basename,
-                                  file_id: file_id,
-                                  generate_url: generate_url)
+          else
+            res.build_version(file, filename: filename)
           end
           res
         end

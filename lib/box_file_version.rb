@@ -1,0 +1,40 @@
+class BoxFileVersion < ActiveRecord::Base
+  belongs_to :box_file
+
+  validates_presence_of :version_id, :filename, :current
+
+  attr_accessor :file
+
+  before_validation(on: :create) do
+    update_version
+  end
+
+  def update_version
+    return if version_id
+
+    client = BoxToken.root.client
+
+    self.filename ||= file.name
+    self.extension = File.extname(file.original_filename).downcase
+
+    latest_version = if box_file.file_id
+                       client.upload_new_version_of_file(file.path, box_file.file_id, name: full_name)
+                     else
+                       first_file = client.upload_file(file.path, box_file.parent.folder_id, name: full_name)
+                       box_file.file_id = first_file.id
+                       box_file.url = client.create_shared_link_for_file(first_file.id, access: :open).shared_link.download_url
+                       first_file
+                     end
+
+    self.version_id = latest_version.file_version.id
+
+    box_file.versions.each do |ver|
+      ver.update_columns(current: false) unless ver.new_record?
+    end
+    self.current = true
+  end
+
+  def full_name
+    "#{filename}#{extension}"
+  end
+end
