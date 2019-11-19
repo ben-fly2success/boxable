@@ -5,7 +5,7 @@ class BoxFile < ActiveRecord::Base
   has_many :versions, class_name: 'BoxFileVersion', dependent: :destroy
 
   # The name is the internal identifier of the file, it must be present
-  validates_presence_of :name, :file_id, :url
+  validates_presence_of :name, :file_id
 
   after_destroy do
     destroy_file
@@ -28,9 +28,14 @@ class BoxFile < ActiveRecord::Base
     token_for(nil, instance: instance)
   end
 
-  def build_version(file, filename: nil)
+  def build_version(file, filename: nil, is_file_box_id: false, generate_url: false)
     previous_version = current_version&.version_id
-    versions << BoxFileVersion.new(box_file: self, file: file, filename: filename, previous_version: previous_version)
+    versions << BoxFileVersion.new(box_file: self,
+                                   file: file,
+                                   filename: filename,
+                                   previous_version: previous_version,
+                                   is_file_box_id: is_file_box_id,
+                                   generate_url: generate_url)
   end
 
   def current_version

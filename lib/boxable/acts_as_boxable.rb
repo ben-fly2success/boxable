@@ -81,6 +81,12 @@ module Boxable
               build_box_file(box_folder_root, name, value, filename: name_method && send(name_method))
             end
           end
+
+          define_method "set_#{name}_from_box_id" do |value|
+            if value && value != ""
+              build_box_file(box_folder_root, name, value, filename: name_method && send(name_method), is_file_box_id: true)
+            end
+          end
         end
       end
 
@@ -96,7 +102,7 @@ module Boxable
         class_eval do
           define_method "#{name}=" do |value|
             if value && value != ""
-              build_box_file(box_folder_root.sub(name), 'original', value)
+              build_box_file(box_folder_root.sub(name), 'original', value, generate_url: true)
               @has_uploaded_file = true
             end
           end
@@ -136,12 +142,12 @@ module Boxable
           end
         end
 
-        def build_box_file(parent, name, file, filename: nil)
+        def build_box_file(parent, name, file, filename: nil, is_file_box_id: false, generate_url: false)
           res = parent.file(name, self) || box_files.build(parent: parent, name: name)
           if file == :destroy
             res.destroy
           else
-            res.build_version(file, filename: filename)
+            res.build_version(file, filename: filename, is_file_box_id: is_file_box_id, generate_url: generate_url)
           end
           res
         end
