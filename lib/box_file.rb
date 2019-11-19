@@ -29,7 +29,8 @@ class BoxFile < ActiveRecord::Base
   end
 
   def build_version(file, filename: nil)
-    versions.build(file: file, filename: filename)
+    previous_version = current_version&.version_id
+    versions << BoxFileVersion.new(box_file: self, file: file, filename: filename, previous_version: previous_version)
   end
 
   def current_version

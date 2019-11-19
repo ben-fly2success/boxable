@@ -1,5 +1,7 @@
 function BoxFileInput(file_input) {
     var dst_field = $(`#${file_input}`).data('dst-field');
+    if (!dst_field)
+        dst_field = file_input;
     var name_field = $(`#${file_input}`).data('name-field');
     let preview = $(`#${file_input}`).data('preview');
     var spinner = $(`#${file_input}`).data('spinner');

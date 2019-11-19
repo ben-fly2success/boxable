@@ -9,12 +9,27 @@ class BoxFileVersion < ActiveRecord::Base
     update_version
   end
 
+  after_commit on: :destroy do
+    if sequence_id != "0"
+      client = BoxToken.root.client
+      client.delete_old_version_of_file(box_file.file_id, version_id)
+    end
+  end
+
+  after_rollback do
+    if previous_version
+      client = BoxToken.root.client
+      client.promote_old_version_of_file(box_file.file_id, previous_version)
+      client.delete_old_version_of_file(box_file.file_id, version_id)
+    end
+  end
+
   def update_version
     return if version_id
 
     client = BoxToken.root.client
 
-    self.filename ||= file.name
+    self.filename ||= box_file.name
     self.extension = File.extname(file.original_filename).downcase
 
     latest_version = if box_file.file_id
@@ -27,6 +42,9 @@ class BoxFileVersion < ActiveRecord::Base
                      end
 
     self.version_id = latest_version.file_version.id
+    self.sequence_id = latest_version.sequence_id
+
+    box_file.boxable.last_uploaded_version = self.version_id
 
     box_file.versions.each do |ver|
       ver.update_columns(current: false) unless ver.new_record?

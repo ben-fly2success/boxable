@@ -31,6 +31,7 @@ module Boxable
 
           # Store boxable metadata in the instance
           cattr_accessor :boxable_config
+          attr_accessor :last_uploaded_version
           self.boxable_config = Boxable::BoxableConfig.new(options)
 
           # Record folders
@@ -59,12 +60,11 @@ module Boxable
         end
 
         class_eval do
-          after_save do
-            boxable.stub.files.each do |k, v|
-              v.save!
-            end
-            boxable.stub.pictures.each do |k, v|
-              v.save!
+          after_rollback do
+            # Delete last version on Box if rollback
+            file = box_files.first
+            if last_uploaded_version && (file.versions.empty? || (new_record? && file.versions.first && !file.versions.second))
+              file.destroy
             end
           end
         end
@@ -78,7 +78,7 @@ module Boxable
 
           define_method "#{name}=" do |value|
             if value && value != ""
-              boxable.stub.files[@name] = build_box_file(box_folder_root, name, value, filename: name_method && send(name_method))
+              build_box_file(box_folder_root, name, value, filename: name_method && send(name_method))
             end
           end
         end
@@ -96,7 +96,8 @@ module Boxable
         class_eval do
           define_method "#{name}=" do |value|
             if value && value != ""
-              boxable.stub.pictures[@name] = build_box_file(box_folder_root.sub(name), 'original', value)
+              build_box_file(box_folder_root.sub(name), 'original', value)
+              @has_uploaded_file = true
             end
           end
 
