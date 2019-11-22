@@ -14,7 +14,8 @@ module Boxable
       folders[0]
     end
 
-    def self.destroy_or_ignore_sub_folder(name, items, client: BoxToken.client)
+    def self.destroy_or_ignore_sub_folder(name, items, client: nil)
+      client ||= BoxToken.client
       begin
         client.delete_folder(Boxable::Helper.sub_folder(name, items), recursive: true)
       rescue Boxr::BoxrError, Boxable::Error => e
@@ -22,7 +23,9 @@ module Boxable
       end
     end
 
-    def self.get_folder_or_create(name, parent, client: BoxToken.client, folder_items: client.folder_items(parent))
+    def self.get_folder_or_create(name, parent, client: nil, folder_items: nil)
+      client ||= BoxToken.client
+      folder_items ||= client.folder_items(parent)
       begin
         Boxable::Helper.sub_folder(name, folder_items)
       rescue Boxable::Error

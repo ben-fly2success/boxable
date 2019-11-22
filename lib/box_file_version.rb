@@ -16,7 +16,7 @@ class BoxFileVersion < ActiveRecord::Base
   end
 
   after_commit on: :destroy do
-    if sequence_id != "0"
+    unless sequence_id.in?(['0', '1'])
       client = BoxToken.root.client
       client.delete_old_version_of_file(box_file.file_id, version_id)
     end
