@@ -2,7 +2,7 @@ folders = ['app', 'lib', 'config']
 
 Gem::Specification.new do |s|
   s.name = 'boxable'
-  s.version = "0.1.0"
+  s.version = "0.1.1"
   s.summary = 'handle Box tree'
   s.files = Dir['{app,config,lib}/**/*']
   s.author = "Adrien LENGLET"

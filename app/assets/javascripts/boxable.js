@@ -219,7 +219,7 @@ const Boxable = function() {
     };
 
     // Temporary folder metadata
-    this.temp_folder = new this.BoxFolder('/box_tokens/temp');
+    //this.temp_folder = new this.BoxFolder('/box_tokens/temp');
 };
 
 let boxable = new Boxable();
