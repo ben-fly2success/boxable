@@ -106,6 +106,24 @@ class BoxFolder < ActiveRecord::Base
     res
   end
 
+  def update_with_folder_id(new_id, client: nil)
+    update_columns(folder_id: new_id)
+
+    client ||= Boxr::Client.new(BoxToken.token.access_token)
+    folder_items = client.folder_items(new_id)
+    box_folders.each do |sub|
+      sub.update_with_folder_id(Boxable::Helper.sub_folder(sub.name, folder_items).id, client: client)
+    end
+    box_files.each do |sub|
+      sub.update_columns(file_id: Boxable::Helper.sub_folder(sub.full_name, folder_items).id)
+    end
+  end
+
+  def self.update_root
+    client = Boxr::Client.new(BoxToken.token.access_token)
+    self.root.update_with_folder_id(client.folder_from_path(Boxable.root).id, client: client)
+  end
+
   # @abstract Get BoxFolder record for temporary folder.
   # @return BoxFolder
   def self.temp
