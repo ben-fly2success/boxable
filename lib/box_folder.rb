@@ -120,8 +120,17 @@ class BoxFolder < ActiveRecord::Base
   end
 
   def self.update_root
+    candidates = BoxFolder.where(parent: nil).order(created_at: :asc)
+    root = candidates.first
+    candidates.drop(1).each(&:destroy)
+    if root
+      root.update_columns(name: Boxable.root)
+    else
+      root = self.root
+    end
+
     client = Boxr::Client.new(BoxToken.token.access_token)
-    self.root.update_with_folder_id(client.folder_from_path(Boxable.root).id, client: client)
+    root.update_with_folder_id(client.folder_from_path(Boxable.root).id, client: client)
   end
 
   # @abstract Get BoxFolder record for temporary folder.
