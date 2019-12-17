@@ -8,7 +8,7 @@ class BoxFolder < ActiveRecord::Base
   has_many :box_folders, foreign_key: :parent_id, dependent: :destroy
   has_many :box_files, foreign_key: :parent_id, dependent: :destroy
 
-  before_validation(on: :create) do
+  after_initialize do
     create_folder
   end
   after_destroy do
@@ -25,7 +25,7 @@ class BoxFolder < ActiveRecord::Base
   def destroy_folder
     client = BoxToken.client
     begin
-      client.delete_folder(client.folder_from_id(folder_id))
+      client.delete_folder(client.folder_from_id(folder_id), recursive: true)
     rescue Boxr::BoxrError
       puts "Can't destroy Box folder: #{folder_id}"
     end
@@ -43,7 +43,7 @@ class BoxFolder < ActiveRecord::Base
   # @note A BoxFolder will be created if not present
   # @return [BoxFolder]
   def sub(name)
-    folder(name) || box_folders.send(boxable&.new_record? ? 'build' : 'create!', name: name)
+    folder(name) || box_folders.send(boxable&.new_record? ? 'build' : 'create!', name: name, parent: self)
   end
 
   # @abstract Get a file in the folder

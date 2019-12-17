@@ -7,7 +7,7 @@ class BoxFileVersion < ActiveRecord::Base
   attr_accessor :is_file_box_id
   attr_accessor :generate_url
 
-  before_validation(on: :create) do
+  after_initialize do
     if is_file_box_id
       update_version_from_box_id
     else
@@ -18,14 +18,6 @@ class BoxFileVersion < ActiveRecord::Base
   after_commit on: :destroy do
     unless sequence_id.in?(['0', '1'])
       client = BoxToken.root.client
-      client.delete_old_version_of_file(box_file.file_id, version_id)
-    end
-  end
-
-  after_rollback do
-    if previous_version
-      client = BoxToken.root.client
-      client.promote_old_version_of_file(box_file.file_id, previous_version)
       client.delete_old_version_of_file(box_file.file_id, version_id)
     end
   end

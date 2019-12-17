@@ -12,10 +12,12 @@ module Boxable
 
     attr_accessor :stub
     attr_accessor :deferred_attachments
+    attr_accessor :attachments
 
     def initialize
       self.stub = Boxable::InstanceBase::Stub.new
       self.deferred_attachments = []
+      self.attachments = []
     end
   end
 end

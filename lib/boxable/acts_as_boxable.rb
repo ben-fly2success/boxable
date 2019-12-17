@@ -60,11 +60,10 @@ module Boxable
         end
 
         class_eval do
-          after_rollback do
-            # Delete last version on Box if rollback
-            file = box_files.first
-            if last_uploaded_version && (file.versions.empty? || (new_record? && file.versions.first && !file.versions.second))
-              file.destroy
+          after_commit on: [:create, :update] do
+            while (attachment = boxable.attachments.pop)
+              proc, params = attachment
+              proc.call(params)
             end
           end
         end
@@ -73,13 +72,17 @@ module Boxable
       def has_one_box_file(name, name_method: nil)
         class_eval do
           define_method(name) do
-            box_folder_root.file(name, self) || boxable.stub.files[name]
+            unless new_record?
+              box_folder_root.file(name, self)
+            end
           end
 
           define_method "#{name}=" do |value|
-            if value && value != ""
-              build_box_file(box_folder_root, name, value, filename: name_method && send(name_method))
-            end
+            boxable.attachments << [lambda do |params|
+              if params[:value] && params[:value] != ""
+                build_box_file(box_folder_root, params[:name], params[:value], filename: params[:name_method] && send(params[:name_method]))
+              end
+            end, {name: name, value: value, name_method: name_method}]
           end
 
           define_method "set_#{name}_from_box_id" do |value|
@@ -93,7 +96,9 @@ module Boxable
       def has_one_box_folder(name)
         class_eval do
           define_method(name) do
-            box_folder_root.sub(name)
+            unless new_record?
+              box_folder_root.sub(name)
+            end
           end
         end
       end
@@ -101,14 +106,17 @@ module Boxable
       def has_one_box_picture(name)
         class_eval do
           define_method "#{name}=" do |value|
-            if value && value != ""
-              build_box_file(box_folder_root.sub(name), 'original', value, generate_url: true)
-              @has_uploaded_file = true
-            end
+            boxable.attachments << [lambda do |params|
+              if value && value != ""
+                build_box_file(box_folder_root.sub(params[:name]), 'original', params[:value], generate_url: true)
+              end
+            end, {name: name, value: value}]
           end
 
           define_method name do
-            box_folder_root.sub(name).file('original', self) || boxable.stub.pictures[name]
+            unless new_record?
+              box_folder_root.sub(name).file('original', self)
+            end
           end
         end
       end
@@ -128,17 +136,18 @@ module Boxable
         end
 
         def box_folder_root
-          case self.class.boxable_config.folder
-          when :parent # Boxable folder is parent folder
-            send(self.class.boxable_config.parent).box_folder_root
-          when :common # Boxable folder is dedicated folder of the association in the parent
-            box_folder_root_parent
-          when :unique # Boxable folder is unique to this record, and is located in a sub folder of the parent (default mode)
-            bound_box_folder || send("#{new_record? ? 'build' : 'create'}_bound_box_folder",
-                                     name: send(self.class.boxable_config.name),
-                                     parent: box_folder_root_parent)
-          else
-            raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
+          unless new_record?
+            case self.class.boxable_config.folder
+            when :parent # Boxable folder is parent folder
+              send(self.class.boxable_config.parent).box_folder_root
+            when :common # Boxable folder is dedicated folder of the association in the parent
+              box_folder_root_parent
+            when :unique # Boxable folder is unique to this record, and is located in a sub folder of the parent (default mode)
+              bound_box_folder || create_bound_box_folder(name: (self.class.boxable_config.name ? send(self.class.boxable_config.name) : self.id),
+                                                          parent: box_folder_root_parent)
+            else
+              raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
+            end
           end
         end
 
@@ -148,6 +157,7 @@ module Boxable
             res.destroy
           else
             res.build_version(file, filename: filename, is_file_box_id: is_file_box_id, generate_url: generate_url)
+            res.save!
           end
           res
         end
