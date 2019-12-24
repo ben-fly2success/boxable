@@ -65,6 +65,7 @@ module Boxable
               proc, params = attachment
               proc.call(params)
             end
+            update_columns(boxable_attachment: false)
           end
         end
       end
@@ -83,6 +84,7 @@ module Boxable
                 build_box_file(box_folder_root, params[:name], params[:value], filename: params[:name_method] && send(params[:name_method]))
               end
             end, {name: name, value: value, name_method: name_method}]
+            self.boxable_attachment = true
           end
 
           define_method "set_#{name}_from_box_id" do |value|
@@ -111,6 +113,7 @@ module Boxable
                 build_box_file(box_folder_root.sub(params[:name]), 'original', params[:value], generate_url: true)
               end
             end, {name: name, value: value}]
+            self.boxable_attachment = true
           end
 
           define_method name do
