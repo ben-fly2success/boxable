@@ -92,6 +92,14 @@ module Boxable
               build_box_file(box_folder_root, name, value, filename: name_method && send(name_method), is_file_box_id: true)
             end
           end
+
+          define_method "#{name}_delete" do
+            false
+          end
+
+          define_method "#{name}_delete=" do |value|
+            send(name)&.update_columns(is_empty: true) if value && value != 'false'
+          end
         end
       end
 
@@ -107,6 +115,12 @@ module Boxable
 
       def has_one_box_picture(name)
         class_eval do
+          define_method name do
+            unless new_record?
+              box_folder_root.sub(name).file('original', self)
+            end
+          end
+
           define_method "#{name}=" do |value|
             boxable.attachments << [lambda do |params|
               if value && value != ""
@@ -116,10 +130,12 @@ module Boxable
             self.boxable_attachment = true
           end
 
-          define_method name do
-            unless new_record?
-              box_folder_root.sub(name).file('original', self)
-            end
+          define_method "#{name}_delete" do
+            false
+          end
+
+          define_method "#{name}_delete=" do |value|
+            send(name)&.update_columns(is_empty: true) if value && value != 'false'
           end
         end
       end
@@ -156,12 +172,9 @@ module Boxable
 
         def build_box_file(parent, name, file, filename: nil, is_file_box_id: false, generate_url: false)
           res = parent.file(name, self) || box_files.build(parent: parent, name: name)
-          if file == :destroy
-            res.destroy
-          else
-            res.build_version(file, filename: filename, is_file_box_id: is_file_box_id, generate_url: generate_url)
-            res.save!
-          end
+          res.build_version(file, filename: filename, is_file_box_id: is_file_box_id, generate_url: generate_url)
+          res.is_empty = false
+          res.save!
           res
         end
 
