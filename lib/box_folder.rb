@@ -114,8 +114,20 @@ class BoxFolder < ActiveRecord::Base
     box_folders.each do |sub|
       sub.update_with_folder_id(Boxable::Helper.sub_folder(sub.name, folder_items).id, client: client)
     end
+
     box_files.each do |sub|
-      sub.update_columns(file_id: Boxable::Helper.sub_folder(sub.full_name, folder_items).id)
+      f = Boxable::Helper.sub_folder(sub.full_name, folder_items)
+      sub.update_columns(file_id: f.id)
+
+      # Update versions
+      sub.versions.each do |v|
+        if v.current
+          v.update_columns(version_id: f.file_version["id"], sequence_id: "0")
+        else
+          # destroy all previous version (they are not migrated)
+          v.destroy!
+        end
+      end
     end
   end
 
