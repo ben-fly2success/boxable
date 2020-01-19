@@ -129,8 +129,15 @@ class BoxFolder < ActiveRecord::Base
       root = self.root
     end
 
+    # update tree structure with id from box
     client = Boxr::Client.new(BoxToken.token.access_token)
     root.update_with_folder_id(client.folder_from_path(Boxable.root).id, client: client)
+
+    # Update shared links
+    BoxFile.where.not(url:nil).each do |file|
+      file.url = client.create_shared_link_for_file(file.file_id, access: :open).shared_link.download_url
+      file.save!
+    end
   end
 
   # @abstract Get BoxFolder record for temporary folder.

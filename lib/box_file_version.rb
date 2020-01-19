@@ -37,12 +37,14 @@ class BoxFileVersion < ActiveRecord::Base
     self.extension = File.extname(file.original_filename).downcase
 
     latest_version = if box_file.file_id
-                       client.upload_new_version_of_file(file.path, box_file.file_id, name: full_name)
+                        client.upload_new_version_of_file(file.path, box_file.file_id, name: full_name)
                      else
-                       first_file = client.upload_file(file.path, box_file.parent.folder_id, name: full_name)
-                       box_file.file_id = first_file.id
-                       box_file.url = client.create_shared_link_for_file(first_file.id, access: :open).shared_link.download_url
-                       first_file
+                        first_file = client.upload_file(file.path, box_file.parent.folder_id, name: full_name)
+                        box_file.file_id = first_file.id
+                        if generate_url
+                          box_file.url = client.create_shared_link_for_file(first_file.id, access: :open).shared_link.download_url
+                        end
+                        first_file
                      end
     update_current_version(latest_version)
   end
