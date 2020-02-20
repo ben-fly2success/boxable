@@ -134,6 +134,12 @@ class BoxFolder < ActiveRecord::Base
   def self.update_root
     # update tree structure with id from box
     client = Boxr::Client.new(BoxToken.token.access_token)
+
+    # reset the folder name of the current env if initializing from prod
+    folder = BoxFolder.where(parent_id: nil).first
+    folder.name = Boxable.root
+    folder.save!
+
     root.update_with_folder_id(client.folder_from_path(Boxable.root).id, client: client)
 
     # Update shared links
