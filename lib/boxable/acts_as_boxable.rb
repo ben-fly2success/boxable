@@ -102,7 +102,10 @@ module Boxable
         class_eval do
           define_method name do
             unless new_record?
-              box_folder_root.sub(name).file('original', self)
+              BoxFile.where(parent: BoxFolder.where(parent: BoxFolder.where(boxable_id: self.id, boxable_type: self.class.name), name:"picture"), name:"original").first
+
+              # deprecated multiple sql query
+              # box_folder_root.sub(name).file('original', self)
             end
           end
 
