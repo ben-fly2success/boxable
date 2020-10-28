@@ -44,21 +44,6 @@ module Boxable
           prepend InstanceMethods
         end
 
-        valid_folder_modes = %i[parent common unique]
-        unless self.boxable_config.folder.in?(valid_folder_modes)
-          raise "Unknown Boxable folder mode '#{self.boxable_config.folder}' for class '#{self.name}'.\nValid modes are #{valid_folder_modes}"
-        end
-
-        begin
-          # Ensure model is correct on initialization, by calling critical methods
-          if boxable_config.parent
-            # Try getting class parent folder metadata, if any
-            box_parent_meta
-          end
-        rescue Boxable::Error => e
-          puts "BOXABLE WARNING: #{e}"
-        end
-
         class_eval do
           after_commit on: [:create, :update] do
             while (attachment = boxable.attachments.pop)
