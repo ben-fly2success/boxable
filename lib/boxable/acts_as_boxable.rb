@@ -155,19 +155,8 @@ module Boxable
         end
 
         def box_folder_root
-          unless new_record?
-            case self.class.boxable_config.folder
-            when :parent # Boxable folder is parent folder
-              send(self.class.boxable_config.parent).box_folder_root
-            when :common # Boxable folder is dedicated folder of the association in the parent
-              box_folder_root_parent
-            when :unique # Boxable folder is unique to this record, and is located in a sub folder of the parent (default mode)
               bound_box_folder || create_bound_box_folder(name: (self.class.boxable_config.name ? send(self.class.boxable_config.name) : self.id),
                                                           parent: box_folder_root_parent)
-            else
-              raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
-            end
-          end
         end
 
         def build_box_file(parent, name, file, filename: nil, is_file_box_id: false, generate_url: false)
