@@ -44,6 +44,21 @@ module Boxable
           prepend InstanceMethods
         end
 
+        valid_folder_modes = %i[parent common unique]
+        unless self.boxable_config.folder.in?(valid_folder_modes)
+          raise "Unknown Boxable folder mode '#{self.boxable_config.folder}' for class '#{self.name}'.\nValid modes are #{valid_folder_modes}"
+        end
+
+        begin
+          # Ensure model is correct on initialization, by calling critical methods
+          if boxable_config.parent
+            # Try getting class parent folder metadata, if any
+            box_parent_meta
+          end
+        rescue Boxable::Error => e
+          puts "BOXABLE WARNING: #{e}"
+        end
+
         class_eval do
           after_commit on: [:create, :update] do
             while (attachment = boxable.attachments.pop)
@@ -59,13 +74,7 @@ module Boxable
         class_eval do
           define_method(name) do
             unless new_record?
-              res = BoxFile.where(boxable: self, name: name)
-              if (res.count > 1)
-                puts "WARNING BOX_FILE : #{self.full_name} has #{res.count} #{name}"
-              end
-              
-              res.first
-              # box_folder_root.file(name, self)
+              box_folder_root.file(name, self)
             end
           end
 
@@ -108,10 +117,7 @@ module Boxable
         class_eval do
           define_method name do
             unless new_record?
-              BoxFile.where(parent: BoxFolder.where(parent: BoxFolder.where(boxable_id: self.id, boxable_type: self.class.name), name:"picture"), name:"original").first
-
-              # deprecated multiple sql query
-              # box_folder_root.sub(name).file('original', self)
+              box_folder_root.sub(name).file('original', self)
             end
           end
 
@@ -149,8 +155,19 @@ module Boxable
         end
 
         def box_folder_root
+          unless new_record?
+            case self.class.boxable_config.folder
+            when :parent # Boxable folder is parent folder
+              send(self.class.boxable_config.parent).box_folder_root
+            when :common # Boxable folder is dedicated folder of the association in the parent
+              box_folder_root_parent
+            when :unique # Boxable folder is unique to this record, and is located in a sub folder of the parent (default mode)
               bound_box_folder || create_bound_box_folder(name: (self.class.boxable_config.name ? send(self.class.boxable_config.name) : self.id),
                                                           parent: box_folder_root_parent)
+            else
+              raise "Unknown Boxable folder mode '#{self.class.boxable_config.folder}'"
+            end
+          end
         end
 
         def build_box_file(parent, name, file, filename: nil, is_file_box_id: false, generate_url: false)
