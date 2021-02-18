@@ -59,7 +59,8 @@ module Boxable
         class_eval do
           define_method(name) do
             unless new_record?
-              box_folder_root.file(name, self)
+              BoxFile.find_by(boxable: self, name: name)
+              # box_folder_root.file(name, self)
             end
           end
 
