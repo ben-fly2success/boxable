@@ -143,9 +143,21 @@ class BoxFolder < ActiveRecord::Base
     root.update_with_folder_id(client.folder_from_path(Boxable.root).id, client: client)
 
     # Update shared links
+    retries = 0
+    max_retries = 10
     BoxFile.where.not(url:nil).each do |file|
-      file.url = client.create_shared_link_for_file(file.file_id, access: :open).shared_link.download_url
-      file.save!
+      begin
+        file.url = client.create_shared_link_for_file(file.file_id, access: :open).shared_link.download_url
+        file.save!
+      rescue Boxr::BoxrError => e
+        if (retries += 1) <= max_retries
+          puts "Timeout (#{e}), retrying in #{retries} second(s)..."
+          sleep(retries)
+          retry
+        else
+          raise
+        end
+      end
     end
   end
 
