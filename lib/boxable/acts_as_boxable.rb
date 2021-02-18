@@ -59,7 +59,12 @@ module Boxable
         class_eval do
           define_method(name) do
             unless new_record?
-              BoxFile.find_by(boxable: self, name: name)
+              res = BoxFile.where(boxable: self, name: name)
+              if (res.count > 1)
+                puts "WARNING BOX_FILE : #{self.full_name} has #{res.count} #{name}"
+              end
+              
+              res.first
               # box_folder_root.file(name, self)
             end
           end
