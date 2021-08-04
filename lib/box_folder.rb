@@ -110,7 +110,20 @@ class BoxFolder < ActiveRecord::Base
     update_columns(folder_id: new_id)
 
     client ||= Boxr::Client.new(BoxToken.token.access_token)
-    folder_items = client.folder_items(new_id)
+
+    retries = 0
+    max_retries = 10
+    begin
+      folder_items = client.folder_items(new_id)
+    rescue => e
+      if (retries += 1) <= max_retries
+        puts "Timeout (#{e}), retrying in #{retries} second(s)..."
+        sleep(retries)
+        retry
+      else
+        raise
+      end
+    end
     box_folders.each do |sub|
       sub.update_with_folder_id(Boxable::Helper.sub_folder(sub.name, folder_items).id, client: client)
     end
@@ -149,7 +162,7 @@ class BoxFolder < ActiveRecord::Base
       begin
         file.url = client.create_shared_link_for_file(file.file_id, access: :open).shared_link.download_url
         file.save!
-      rescue Boxr::BoxrError => e
+      rescue => e
         if (retries += 1) <= max_retries
           puts "Timeout (#{e}), retrying in #{retries} second(s)..."
           sleep(retries)
