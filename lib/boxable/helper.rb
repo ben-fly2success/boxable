@@ -9,7 +9,7 @@ module Boxable
       folders = box_folder_items.map{|f| f if f.name.downcase == sub_name.downcase}.compact
 
       raise Boxable::Error.new("Folder '#{sub_name}' not found in items '#{items_names(box_folder_items)}'") if folders.count == 0
-      raise Boxable::Error.new("Too many folders (#{folders.count}) for '#{sub_name}' in items '#{items_names(box_folder_items)}' first box id is #{folders.first.folder_id} - please delete unecessary folder") if folders.count > 1
+      raise Boxable::Error.new("Too many folders (#{folders.count}) for '#{sub_name}' in items '#{items_names(box_folder_items)}' look in folder #{self.folder_id} - please delete unecessary folder") if folders.count > 1
 
       folders[0]
     end
