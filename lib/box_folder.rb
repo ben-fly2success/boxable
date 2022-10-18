@@ -125,11 +125,11 @@ class BoxFolder < ActiveRecord::Base
       end
     end
     box_folders.each do |sub|
-      sub.update_with_folder_id(Boxable::Helper.sub_folder(sub.name, folder_items).id, client: client)
+      sub.update_with_folder_id(Boxable::Helper.sub_folder(sub.name, folder_items, new_id).id, client: client)
     end
 
     box_files.each do |sub|
-      f = Boxable::Helper.sub_folder(sub.full_name, folder_items)
+      f = Boxable::Helper.sub_folder(sub.full_name, folder_items, new_id)
       sub.update_columns(file_id: f.id)
 
       # Update versions
