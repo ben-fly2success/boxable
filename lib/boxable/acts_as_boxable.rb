@@ -116,9 +116,16 @@ module Boxable
       def has_one_box_picture(name)
         class_eval do
           define_method name do
-            unless new_record?
-              box_folder_root.sub(name).file('original', self)
+            res = nil
+            begin
+              unless new_record?
+                res = box_folder_root.sub(name).file('original', self)
+              end                
+            rescue => exception
+              puts "Error: BOX could not find picture #{name}"
             end
+            
+            res
           end
 
           define_method "#{name}=" do |value|

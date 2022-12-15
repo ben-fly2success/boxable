@@ -109,25 +109,29 @@ class BoxFolder < ActiveRecord::Base
   def update_with_folder_id(new_id, client: nil)
     update_columns(folder_id: new_id)
 
+    puts "Updating folder #{new_id} (#{name})..."
     client ||= Boxr::Client.new(BoxToken.token.access_token)
 
     retries = 0
     max_retries = 10
+    puts "retrieving subfolders..."
     begin
       folder_items = client.folder_items(new_id)
     rescue => e
       if (retries += 1) <= max_retries
-        puts "Timeout (#{e}), retrying in #{retries} second(s)..."
+        puts "Timeout (#{e}), retrying in #{retries} second(s) in folder (#{new_id})..."
         sleep(retries)
         retry
       else
         raise
       end
     end
+    puts "#{folder_items.count} folders retrieved !"
     box_folders.each do |sub|
       sub.update_with_folder_id(Boxable::Helper.sub_folder(sub.name, folder_items, new_id).id, client: client)
     end
 
+    puts "updating box files..."
     box_files.each do |sub|
       f = Boxable::Helper.sub_folder(sub.full_name, folder_items, new_id)
       sub.update_columns(file_id: f.id)
@@ -142,6 +146,8 @@ class BoxFolder < ActiveRecord::Base
         end
       end
     end
+    puts "Folder #{new_id} (#{name}) update completed !"
+
   end
 
   def self.update_root
@@ -164,7 +170,7 @@ class BoxFolder < ActiveRecord::Base
         file.save!
       rescue => e
         if (retries += 1) <= max_retries
-          puts "Timeout (#{e}), retrying in #{retries} second(s)..."
+          puts "Timeout (#{e}), retrying in #{retries} second(s) in file (#{file.file_id})..."
           sleep(retries)
           retry
         else
